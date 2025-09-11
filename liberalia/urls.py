@@ -13,7 +13,7 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),   # Rutas de la app 'accounts' para login, logout y manejo de usuarios
     path('', include('accounts.urls_root')),       # Ruta raíz del proyecto: portada simple que redirige según rol
     path("panel/", include("roles.urls", namespace="roles")), # Paneles por rol (Admin, Editor, Consultor) usando namespace 'roles'
-
+    path("catalogo/", include(("catalogo.urls", "catalogo"), namespace="catalogo")),
     # ----------------------------------------------------------------------
     # Flujo de recuperación de contraseña (Password Reset)
     # ----------------------------------------------------------------------

@@ -1,36 +1,130 @@
+<!-- ----------------------------------------------------------------------------- 
+TEMPLATE DEL PANEL DE CONSULTOR DE LA APLICACION
+Incluye:
+- Menú de usuario con rol "Consultor" y opciones básicas (cambio de contraseña, cierre de sesión).
+- Filtros de búsqueda (editorial y rango de fechas).
+- Tabla de resultados con ordenamiento y exportación a CSV.
+- Acciones limitadas según permisos de consultor.
+- Validación en cliente para el rango de fechas.
+----------------------------------------------------------------------------- -->
+
+
+{# templates/roles/consultor.html #}
 {% extends "base.html" %}
 {% load static %}
 
+
 {% block title %}Panel CONSULTOR - Liberalia{% endblock %}
 
-{% block extra_head %}
-<style>
-  .dashboard-card{max-width:540px;margin-top:4rem}
-  .brand-logo{height:40px}
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container d-flex align-items-center justify-content-center" style="min-height:60vh;">
-  <div class="card shadow-sm auth-card w-100">
-      <div class="card-body">
 
+<div class="container py-3">
 
-      <h1 class="h4 text-center mb-1">Bienvenido</h1>
-      <p class="text-center text-muted mb-4">
-        {{ request.user.get_full_name|default:request.user.username }}
-        · <span class="badge bg-info text-dark">Consultor</span>
-      </p>
+  <!-- Logo -->
+  <div class="brand-top mb-2">
+    <img src="{% static 'img/logo_liberalia.jpg' %}" class="brand-logo" alt="Liberalia">
+  </div>
 
-      <dl class="row small mb-4">
-        <dt class="col-4 text-muted">Correo</dt><dd class="col-8">{{ request.user.email }}</dd>
-        <dt class="col-4 text-muted">Rol</dt><dd class="col-8">{{ request.user.profile.get_role_display }}</dd>
-      </dl>
+  <!-- Menú usuario (derecha) -->
+  <div class="d-flex justify-content-end mb-3">
+    <div class="dropdown user-menu">
+      <button class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown">
+        {{ request.user.get_username }}
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li class="dropdown-header">
+          {{ request.user.email }}<br>
+          <span class="badge bg-secondary">Consultor</span>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'password_reset' %}">Cambiar contraseña</a></li>
+       <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Cerrar sesión</a></li>
 
-      <div class="d-grid gap-2">
-        <a class="btn btn-outline-secondary" href="{% url 'accounts:logout' %}">Cerrar sesión</a>
-      </div>
+      </ul>
     </div>
   </div>
+
+  <!-- Filtros -->
+  <form class="row g-3 align-items-end" method="get" style="max-width:980px;margin:0 auto;">
+    <div class="col-12 col-md-5">
+      <label class="form-label mb-1">Nombre editorial</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-sliders"></i></span>
+        <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Buscar editorial…">
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <label class="form-label mb-1">Desde</label>
+      <input type="date" name="date_from" value="{{ date_from }}" class="form-control" placeholder="dd-mm-aaaa">
+    </div>
+
+    <div class="col-6 col-md-3">
+      <label class="form-label mb-1">Hasta</label>
+      <input type="date" name="date_to" value="{{ date_to }}" class="form-control" placeholder="dd-mm-aaaa">
+    </div>
+
+    <!-- Botones: Descargar al lado de Buscar -->
+    <div class="col-12 col-md-1 d-flex gap-2">
+      <button class="btn btn-outline-burdeo" type="submit">Buscar</button>
+      <a class="btn btn-outline-burdeo"
+         href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort={{ sort }}&export=csv">
+        Descargar
+      </a>
+    </div>
+  </form>
+
+  <!-- Tabla despliegue -->
+  <div class="table-responsive mt-3" style="max-width:980px; margin:0 auto; min-height: 300px;">
+    <table class="table align-middle mb-0">
+      <thead>
+        <tr>
+          <th><a href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort=isbn">ISBN</a></th>
+          <th><a href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort=titulo">TÍTULO</a></th>
+          <th><a href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort=autor">AUTOR</a></th>
+          <th><a href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort=editorial">EDITORIAL</a></th>
+          <th><a href="?q={{ q }}&date_from={{ date_from }}&date_to={{ date_to }}&sort=fecha">F. EDICIÓN</a></th>
+          <th class="text-end">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="fw-semibold">{{ r.isbn }}</td>
+          <td>{{ r.titulo }}</td>
+          <td>{{ r.autor }}</td>
+          <td>{{ r.editorial.nombre }}</td>
+          <td>{{ r.fecha_edicion|date:"d/m/Y" }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-burdeo" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
+          </td>
+
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Sin resultados</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </div>
+
+
+
+<!-- Valida que la fecha Hasta sea superior a Desde (se puede hacer en el back con Django, posteriormente)-->
+
+<script>
+  const form = document.querySelector('form');
+  form.addEventListener('submit', function(e) {
+    const dateFrom = document.querySelector('input[name="date_from"]').value;
+    const dateTo = document.querySelector('input[name="date_to"]').value;
+
+    if (dateFrom && dateTo && dateTo < dateFrom) {
+      e.preventDefault();
+      alert("La fecha 'Hasta' debe ser igual o posterior a la fecha 'Desde'.");
+    }
+  });
+</script>
+
 {% endblock %}
+
+

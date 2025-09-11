@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts',
     'roles.apps.RolesConfig',
+    'catalogo.apps.CatalogoConfig',
 ]
 
 MIDDLEWARE = [
