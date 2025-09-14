@@ -7,16 +7,15 @@
 
 from django.urls import path
 from .views import (
-    PanelAdminView, PanelConsultorView, PanelEditorView,
-    LibroCreateView, LibroEditView
+    PanelView, LibroCreateView, LibroEditView
+    
 )
 
 app_name = "roles"
 
 urlpatterns = [
-    path("admin/",      PanelAdminView.as_view(),      name="panel_admin"),
-    path("consultor/",  PanelConsultorView.as_view(),  name="panel_consultor"),
-    path("editor/",     PanelEditorView.as_view(),     name="panel_editor"),
+    # Ruta única del panel (sirve para ADMIN / EDITOR / CONSULTOR)
+    path("panel/", PanelView.as_view(), name="panel"),
 
     # Editor: crear/editar (stubs)
     path("editor/fichas/nueva/",        LibroCreateView.as_view(), name="ficha_new"),

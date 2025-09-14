@@ -197,16 +197,16 @@ class BasePanelView(LoginRequiredMixin, View):
         return response
 
 
-class PanelAdminView(BasePanelView):
-    role_required = Profile.ROLE_ADMIN
+class PanelView(BasePanelView):
+    """Panel unificado; el template condiciona por rol."""
+    role_required = None
 
-
-class PanelConsultorView(BasePanelView):
-    role_required = Profile.ROLE_CONSULTOR
-
-
-class PanelEditorView(BasePanelView):
-    role_required = Profile.ROLE_EDITOR
+    def get(self, request, *args, **kwargs):
+        # Asegura que el usuario tenga un rol válido antes de renderizar
+        role = _role(request.user)
+        if role not in (Profile.ROLE_ADMIN, Profile.ROLE_EDITOR, Profile.ROLE_CONSULTOR):
+            return redirect("home-root")  # o HttpResponse(status=403)
+        return super().get(request, *args, **kwargs)
 
 
 # -----------------------------------------------------------

@@ -83,9 +83,9 @@ def home(request):
     # Función interna para determinar la URL según rol
     def _role_redirect(user):
         r = getattr(getattr(user, "profile", None), "role", None)
-        if r == Profile.ROLE_ADMIN:     return reverse("roles:panel_admin")
-        if r == Profile.ROLE_EDITOR:    return reverse("roles:panel_editor")
-        if r == Profile.ROLE_CONSULTOR: return reverse("roles:panel_consultor")
+        if r == Profile.ROLE_ADMIN:     return reverse("roles:panel")
+        if r == Profile.ROLE_EDITOR:    return reverse("roles:panel")
+        if r == Profile.ROLE_CONSULTOR: return reverse("roles:panel")
         return reverse("accounts:login") # fallback por si no hay rol
 
     # Si el usuario está autenticado, lo redirigimos según su rol
