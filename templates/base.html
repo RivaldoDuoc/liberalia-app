@@ -61,8 +61,13 @@ Plantilla base de Liberalia:
     </div>
   </nav>
 
+  <!--direccionar al logo para que al presionar vuelva al panel principal con tamaños fijo de 200px-->
   <div class="hero-section">
-    <img src="{% static 'img/logo_liberalia.jpg' %}" class="hero-image" alt="Logo liberalia">
+    <a href="{% if user.is_authenticated %}{% url 'roles:panel' %}{% else %}{% url 'home-root' %}{% endif %}"
+      class="d-inline-block" style="line-height:0;">
+      <img src="{% static 'img/logo_liberalia.jpg' %}" alt="Logo liberalia"
+        style="height: 200px; width:auto; display:block;">
+    </a>
   </div>
   {% endif %}
 

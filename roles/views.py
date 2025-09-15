@@ -9,7 +9,14 @@ from .models import Profile, UsuarioEditorial
 from catalogo.models import LibroFicha
 
 import csv
-from datetime import datetime
+from datetime import datetime, date, datetime as dt
+from django.urls import reverse
+from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm
+from decimal import Decimal  
+from django import forms
+
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from urllib.parse import urlencode
 
 
 # ----------------------------
@@ -142,24 +149,46 @@ def build_queryset_for_user(user, params):
 # -----------------------------------------------
 # Vistas de lista (template unificado)
 # -----------------------------------------------
+
 class BasePanelView(LoginRequiredMixin, View):
-    template_name = "roles/panel.html"   # TEMPLATE ÚNICO
-    role_required = None                 
+    template_name = "roles/panel.html"
+    role_required = None
+    paginate_by = 8  # registros por página
 
     def get(self, request: HttpRequest):
-        # Exportación CSV (solo si el rol lo permite)
+        # Exportación CSV
         if request.GET.get("export") == "csv":
             role = getattr(getattr(request.user, "profile", None), "role", None)
             if self.role_required and role != self.role_required:
-                return redirect("home-root")  # o HttpResponse("Prohibido", status=403)
+                return redirect("home-root")
             flags = _panel_flags(request.user)
             if not flags.get("can_download"):
                 return HttpResponse("No autorizado", status=403)
             return self.export_csv(request)
 
         qs = build_queryset_for_user(request.user, request.GET)
+
+        # Paginación
+        page = request.GET.get("page", 1)
+        paginator = Paginator(qs, self.paginate_by)
+        try:
+            rows = paginator.page(page)
+        except PageNotAnInteger:
+            rows = paginator.page(1)
+        except EmptyPage:
+            rows = paginator.page(paginator.num_pages)
+
+        # >>> NUEVO: querystring base sin 'page'
+        params = request.GET.copy()
+        params.pop('page', None)
+        base_qs = params.urlencode()
+        # <<<
+
         ctx = {
-            "rows": qs[:1000],  # limitada a 1000 registros
+            "rows": rows,
+            "paginator": paginator,
+            "page_obj": rows,
+            "is_paginated": rows.has_other_pages(),
             "q": request.GET.get("q", ""),
             "q_titulo": request.GET.get("q_titulo", ""),
             "q_isbn": request.GET.get("q_isbn", ""),
@@ -167,16 +196,16 @@ class BasePanelView(LoginRequiredMixin, View):
             "date_to": request.GET.get("date_to", ""),
             "sort": request.GET.get("sort", ""),
             "ALLOWED_SORTS": ALLOWED_SORTS,
+            "base_qs": base_qs,   # >>> añade esto
         }
 
-        # valida rol si corresponde
         role = getattr(getattr(request.user, "profile", None), "role", None)
         if self.role_required and role != self.role_required:
-            return redirect("home-root")  # o HttpResponse("Prohibido", status=403)
+            return redirect("home-root")
 
-        # inyecta banderas por rol
         ctx.update(_panel_flags(request.user))
         return render(request, self.template_name, ctx)
+
 
     def export_csv(self, request: HttpRequest) -> HttpResponse:
         qs = build_queryset_for_user(request.user, request.GET)
@@ -210,15 +239,215 @@ class PanelView(BasePanelView):
 
 
 # -----------------------------------------------------------
-# Vistas SOLO PROVISIONALES para crear/editar fichas (placeholders)
+# CREACION DE FICHAS (USUARIO EDITOR) 
 # -----------------------------------------------------------
-class LibroCreateView(LoginRequiredMixin, View):
-    def get(self, request):
-        # TODO: template de creación
-        return HttpResponse("Nueva ficha (formulario)")
 
+class LibroCreateWizardView(LoginRequiredMixin, View):
+    """Wizard en 3 pasos para crear LibroFicha (solo EDITOR).
+    Guardo el avance en request.session['libro_wizard'] usando SOLO tipos JSON puros
+    (strings, números, bool, listas, dicts). Nada de objetos de Django.
+    """
+    template_name = "roles/libro_wizard.html"
+    steps = ("ident", "tecnica", "comercial")
+
+    # Campos ForeignKey del modelo (coinciden con tus forms)
+    FK_FIELDS = ("editorial", "tipo_tapa", "idioma_original", "pais_edicion", "moneda")
+
+    # ---- Helpers de sesión / rol ----
+    def _ensure_editor(self, request):
+        # Me aseguro que solo un usuario con rol EDITOR pueda entrar a este flujo
+        role = getattr(getattr(request.user, "profile", None), "role", None)
+        if role != Profile.ROLE_EDITOR:
+            return redirect("roles:panel")  # también podría devolver un 403
+
+    def _get_storage(self, request):
+        # Leo (o creo) el diccionario donde voy guardando el progreso del wizard
+        return request.session.setdefault("libro_wizard", {})
+
+    def _save_storage(self, request, data):
+        # Persisto el diccionario en la sesión y marco como modificada
+        request.session["libro_wizard"] = data
+        request.session.modified = True
+
+    def _clear_storage(self, request):
+        # Limpio los datos del wizard al terminar (o si quiero reiniciar)
+        if "libro_wizard" in request.session:
+            del request.session["libro_wizard"]
+            request.session.modified = True
+
+    def _step_form(self, step, user, data=None, initial=None):
+        """
+        Devuelvo la instancia de form que toca según el paso:
+        - data: POST para bindear y validar
+        - initial: valores precargados desde sesión para pintar en el GET
+        """
+        kwargs = {"data": data, "initial": initial, "request_user": user}
+        if step == "ident":
+            return LibroIdentForm(**kwargs)
+        if step == "tecnica":
+            return LibroTecnicaForm(**kwargs)
+        if step == "comercial":
+            return LibroComercialForm(**kwargs)
+        # Si llega algo raro, corto de inmediato
+        raise ValueError("Paso inválido")
+
+    # ---------- Serialización segura para session ----------
+    def _serialize_for_session(self, form: forms.ModelForm) -> dict:
+        """
+        Convierto cleaned_data a PRIMITIVOS JSON (clave para no romper la sesión):
+        - ModelChoiceField     -> guardo <campo>_id (el PK)
+        - ModelMultipleChoice  -> guardo <campo>_ids (lista de PKs)
+        - date/datetime        -> guardo como string ISO
+        - Decimal              -> guardo como string
+        - Primitivos           -> los dejo tal cual
+        - Files                -> no los guardo en sesión
+        """
+        out = {}
+        for name, field in form.fields.items():
+            val = form.cleaned_data.get(name)
+
+            # Si es un archivo (tiene .read y .name), lo salto: no va a la sesión
+            if hasattr(val, "read") and hasattr(val, "name"):
+                continue
+
+            # ForeignKey (uno): guardo el _id
+            if isinstance(field, forms.ModelChoiceField):
+                out[f"{name}_id"] = getattr(val, "pk", None) if val else None
+                continue
+
+            # ManyToMany: guardo lista de ids
+            if isinstance(field, forms.ModelMultipleChoiceField):
+                out[f"{name}_ids"] = [obj.pk for obj in val] if val is not None else []
+                continue
+
+            # Fechas/horas: a ISO string
+            if isinstance(val, (date, datetime)):
+                out[name] = val.isoformat() if val else None
+                continue
+
+            # Decimales: a string (evito problemas de serialización)
+            if isinstance(val, Decimal):
+                out[name] = str(val) if val is not None else None
+                continue
+                
+            # El resto (str, int, float, bool, None, listas/dicts simples)
+            out[name] = val
+        return out
+
+    def _initial_from_storage(self, step_storage: dict, form_cls: type[forms.ModelForm]) -> dict:
+        """
+        Convierto lo que tengo en sesión a 'initial' del form.
+        Para FK/M2M, los forms aceptan directamente PKs o listas de PKs.
+        """
+        dummy = form_cls(request_user=None)  # creo una instancia sin bind para inspeccionar fields
+        initial = {}
+        for name, field in dummy.fields.items():
+            if isinstance(field, forms.ModelChoiceField):
+                # Para FK uso el valor *_id que dejé en la sesión
+                initial[name] = step_storage.get(f"{name}_id")
+            elif isinstance(field, forms.ModelMultipleChoiceField):
+                # Para M2M uso la lista *_ids
+                initial[name] = step_storage.get(f"{name}_ids", [])
+            else:
+                # Para el resto, leo el mismo nombre
+                initial[name] = step_storage.get(name)
+        return initial
+
+    # ---- HTTP ----
+    def get(self, request):
+        # Bloqueo si no es EDITOR
+        maybe_redirect = self._ensure_editor(request)
+        if maybe_redirect:
+            return maybe_redirect
+        
+        # Tomo el paso actual del querystring; si es inválido, parto desde "ident"
+        step = request.GET.get("step") or "ident"
+        if step not in self.steps:
+            step = "ident"
+
+        storage = self._get_storage(request)
+        step_storage = storage.get(step, {})
+
+        # Armo el 'initial' en base a lo que ya guardé en sesión para este paso
+        if step == "ident":
+            initial = self._initial_from_storage(step_storage, LibroIdentForm)
+        elif step == "tecnica":
+            initial = self._initial_from_storage(step_storage, LibroTecnicaForm)
+        else:
+            initial = self._initial_from_storage(step_storage, LibroComercialForm)
+
+        # Creo el form del paso (sin data, solo initial)
+        form = self._step_form(step, request.user, data=None, initial=initial)
+        ctx = {"step": step, "form": form, "wizard_data": storage}
+        return render(request, self.template_name, ctx)
+
+    def post(self, request):
+        # De nuevo, solo EDITOR puede postear aquí
+        maybe_redirect = self._ensure_editor(request)
+        if maybe_redirect:
+            return maybe_redirect   
+        
+        # Leo en qué paso estoy (viene en un input hidden del template)
+        storage = self._get_storage(request)
+        step = request.POST.get("step") or "ident"
+        if step not in self.steps:
+            step = "ident"
+
+        form = self._step_form(step, request.user, data=request.POST, initial=None)        
+        if not form.is_valid():
+            # Si hay errores, vuelvo a pintar el mismo paso con mensajes
+            ctx = {"step": step, "form": form, "wizard_data": storage}
+            return render(request, self.template_name, ctx)
+
+         # Si el form está OK, serializo y guardo este paso en sesión
+        storage[step] = self._serialize_for_session(form)
+        self._save_storage(request, storage)
+
+        # Navegación: si apretaron "Anterior", retrocedo un paso
+        if "prev" in request.POST:
+            prev_idx = max(0, self.steps.index(step) - 1)
+            prev_step = self.steps[prev_idx]
+            return redirect(f"{reverse('roles:ficha_new')}?step={prev_step}")
+
+        # Si no es el último paso, sigo al siguiente
+        if step != "comercial":
+            next_idx = min(len(self.steps) - 1, self.steps.index(step) + 1)
+            next_step = self.steps[next_idx]
+            return redirect(f"{reverse('roles:ficha_new')}?step={next_step}")        
+
+        # --- Paso final: junto todo y creo el registro ---
+        data = {}
+        for s in self.steps:
+            # Merge simple de lo que guardé por paso (último valor pisa al anterior)
+            data.update(storage.get(s, {}))
+
+        # Si no definieron código de imagen, uso el ISBN como nombre .png
+        if not data.get("codigo_imagen"):
+            data["codigo_imagen"] = f"{data.get('isbn','')}.png"
+
+        # Creo el LibroFicha. Django entiende los *_id para asignar FKs.
+        # OJO: asumo que las claves y tipos calzan con el modelo.
+        libro = LibroFicha.objects.create(**data)
+
+        # Limpio la sesión del wizard para que no queden restos
+        self._clear_storage(request)
+
+        # Redirijo al panel principal, nuevamente
+        return redirect("roles:panel")
+
+# -----------------------------------------------------------
+# Vistas SOLO PROVISIONAL para editar ficha 
+# -----------------------------------------------------------
 
 class LibroEditView(LoginRequiredMixin, View):
     def get(self, request, isbn):
-        # TODO: template de edición
         return HttpResponse(f"Editar ficha {isbn}")
+
+# -----------------------------------------------------------
+# SOLO PROVISIONAL para BOTON CARGA MASIVA
+# -----------------------------------------------------------
+
+@login_required
+def ficha_upload(request):
+    # Por ahora no procesamos nada: si llegó archivo, perfecto; si no, igual volvemos.
+    return redirect(f"{reverse('roles:ficha_new')}?step={request.POST.get('step','ident')}")
