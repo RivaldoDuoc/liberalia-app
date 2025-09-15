@@ -28,7 +28,7 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
   }
 
   .input-group .form-control {
-    padding-right: 1rem;    
+    padding-right: 1rem;
   }
 </style>
 
@@ -192,7 +192,7 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
           <td>{{ r.fecha_edicion|date:"d/m/Y" }}</td>
           <td class="text-end">
             {% if can_edit and edit_url_name %}
-            <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}" >Editar</a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}">Editar</a>
             {% elif show_detail %}
             <!--<a href="{% url 'catalogo:libro_detalle' r.isbn %}" class="btn btn-sm btn-outline-burdeo {{ detail_disabled|default:'disabled' }}">Detalle</a>-->
             <a class="btn btn-sm btn-outline-burdeo" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
@@ -209,8 +209,43 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
       </tbody>
     </table>
   </div>
-</div>
 
+  <!--PAGINACION (8 REGISTROS POR)-->
+  {% if is_paginated %}
+  <nav aria-label="Paginación" class="d-flex justify-content-center mt-3">
+    <ul class="pagination mb-0">
+
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link"
+          href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.previous_page_number }}">&laquo;</a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+      {% endif %}
+
+      {% for num in paginator.page_range %}
+      {% if page_obj.number == num %}
+      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+      {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %} <li class="page-item">
+        <a class="page-link" href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ num }}">{{ num }}</a>
+        </li>
+        {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link"
+            href="?{% if base_qs %}{{ base_qs }}&{% endif %}page={{ page_obj.next_page_number }}">&raquo;</a>
+        </li>
+        {% else %}
+        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+        {% endif %}
+
+    </ul>
+  </nav>
+  {% endif %}
+</div>
 
 <script>
   const form = document.querySelector('form');

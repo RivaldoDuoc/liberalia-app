@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear ficha – Liberalia{% endblock %}
+
+{% block content %}
+<div class="container py-3" style="max-width:980px; margin:0 auto;">
+
+  <!-- Título y botón cargar archivo -->
+  <div class="position-relative mb-3" style="min-height:2.25rem;">
+    <h4 class="m-0 text-center">Crear Nueva Ficha</h4>
+
+    <!-- Botón “Cargar archivo” -->
+    <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'roles:ficha_upload' %}"
+      class="position-absolute top-50 end-0 translate-middle-y d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="step" value="{{ step }}">
+      <input type="file" name="archivo" id="archivoInput" class="d-none" accept=".xlsx,.csv,.json,.txt">
+      <button type="button" class="btn btn-outline-primary btn-sm"
+        onclick="document.getElementById('archivoInput').click()">
+        Cargar archivo
+      </button>
+    </form>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <!-- Formulario único para todo el “wizard” -->
+      <form id="wizardForm" method="post" class="row g-3" novalidate>
+        {% csrf_token %}
+        <!-- Paso actual del flujo (ident / tecnica / comercial). Lo mando en cada submit para no perder el hilo -->
+        <input type="hidden" name="step" value="{{ step }}" />
+
+        {% if step == "ident" %}
+
+        <!-- PASO 1: Datos básicos del libro -->
+        <h5 class="mb-3 text-uppercase text-muted fw-bold">Identificación del libro</h5>
+
+        <!-- Campo + bloque de errores (si el backend marca algo inválido, lo muestro debajo) -->
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">ISBN (*)</label>
+          {{ form.isbn }}
+          {% if form.isbn.errors %}
+          <div class="invalid-feedback d-block">{{ form.isbn.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">EAN-13</label>
+          {{ form.ean }}
+          {% if form.ean.errors %}
+          <div class="invalid-feedback d-block">{{ form.ean.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Sello Editorial (*)</label>
+          {{ form.editorial }}
+          {% if form.editorial.errors %}
+          <div class="invalid-feedback d-block">{{ form.editorial.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-muted small">Título del Libro (*)</label>
+          {{ form.titulo }}
+          {% if form.titulo.errors %}
+          <div class="invalid-feedback d-block">{{ form.titulo.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-muted small">Subtítulo</label>
+          {{ form.subtitulo }}
+          {% if form.subtitulo.errors %}
+          <div class="invalid-feedback d-block">{{ form.subtitulo.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Autores y Prólogo todos con el mismo patrón de errores -->
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Autor(es) (*)</label>
+          {{ form.autor }}
+          {% if form.autor.errors %}
+          <div class="invalid-feedback d-block">{{ form.autor.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Autor del Prólogo</label>
+          {{ form.autor_prologo }}
+          {% if form.autor_prologo.errors %}
+          <div class="invalid-feedback d-block">{{ form.autor_prologo.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Traductor(es)</label>
+          {{ form.traductor }}
+          {% if form.traductor.errors %}
+          <div class="invalid-feedback d-block">{{ form.traductor.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Ilustrador(es)</label>
+          {{ form.ilustrador }}
+          {% if form.ilustrador.errors %}
+          <div class="invalid-feedback d-block">{{ form.ilustrador.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if step == "tecnica" %}
+
+        <!-- PASO 2: Especificaciones técnicas del libro (formato, páginas, idioma, medidas) -->
+        <h5 class="mb-3 text-uppercase text-muted fw-bold">Ficha Técnica</h5>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Encuadernación (*)</label>
+          {{ form.tipo_tapa }}
+          {% if form.tipo_tapa.errors %}
+          <div class="invalid-feedback d-block">{{ form.tipo_tapa.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Cant. de páginas (*)</label>
+          {{ form.numero_paginas }}
+          {% if form.numero_paginas.errors %}
+          <div class="invalid-feedback d-block">{{ form.numero_paginas.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Idioma (*)</label>
+          {{ form.idioma_original }}
+          {% if form.idioma_original.errors %}
+          <div class="invalid-feedback d-block">{{ form.idioma_original.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Medidas del libro (opcionales, pero útiles para tener la ficha completa) -->
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Alto (cm)</label>
+          {{ form.alto_cm }}
+          {% if form.alto_cm.errors %}
+          <div class="invalid-feedback d-block">{{ form.alto_cm.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Ancho (cm)</label>
+          {{ form.ancho_cm }}
+          {% if form.ancho_cm.errors %}
+          <div class="invalid-feedback d-block">{{ form.ancho_cm.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Grosor (cm)</label>
+          {{ form.grosor_cm }}
+          {% if form.grosor_cm.errors %}
+          <div class="invalid-feedback d-block">{{ form.grosor_cm.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Peso (gr)</label>
+          {{ form.peso_gr }}
+          {% if form.peso_gr.errors %}
+          <div class="invalid-feedback d-block">{{ form.peso_gr.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Datos de edición -->
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Nº edición (*)</label>
+          {{ form.numero_edicion }}
+          {% if form.numero_edicion.errors %}
+          <div class="invalid-feedback d-block">{{ form.numero_edicion.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Fecha edición (*)</label>
+          {{ form.fecha_edicion }}
+          {% if form.fecha_edicion.errors %}
+          <div class="invalid-feedback d-block">{{ form.fecha_edicion.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-muted small">País edición (*)</label>
+          {{ form.pais_edicion }}
+          {% if form.pais_edicion.errors %}
+          <div class="invalid-feedback d-block">{{ form.pais_edicion.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-muted small">Nº de Impresión</label>
+          {{ form.numero_impresion }}
+          {% if form.numero_impresion.errors %}
+          <div class="invalid-feedback d-block">{{ form.numero_impresion.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold text-muted small">Temática</label>
+          {{ form.tematica }}
+          {% if form.tematica.errors %}
+          <div class="invalid-feedback d-block">{{ form.tematica.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if step == "comercial" %}
+
+        <!-- PASO 3: Info comercial (precio, moneda, descuento, resumen) -->
+        <h5 class="mb-3 text-uppercase text-muted fw-bold">Comercial</h5>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Precio sin IVA (*)</label>
+          {{ form.precio }}
+          {% if form.precio.errors %}
+          <div class="invalid-feedback d-block">{{ form.precio.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Moneda (*)</label>
+          {{ form.moneda }}
+          {% if form.moneda.errors %}
+          <div class="invalid-feedback d-block">{{ form.moneda.errors|striptags }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold text-muted small">Desc. distribuidor (%) (*)</label>
+          {{ form.descuento_distribuidor }}
+          {% if form.descuento_distribuidor.errors %}
+          <div class="invalid-feedback d-block">{{ form.descuento_distribuidor.errors|striptags }}</div>
+          {% endif %}
+          {% if form.descuento_distribuidor.help_text %}
+          <div class="form-text">{{ form.descuento_distribuidor.help_text }}</div>
+          {% endif %}
+        </div>
+
+        <div class="col-12">
+          <label class="form-label fw-bold text-muted small">Resumen del libro (*)</label>
+          {{ form.resumen_libro }}
+          {% if form.resumen_libro.errors %}
+          <div class="invalid-feedback d-block">{{ form.resumen_libro.errors|striptags }}</div>
+          {% endif %}
+        </div>
+        <br>
+
+        <div class="col-12 mt-2">
+          <div class="row g-3 align-items-end">
+
+            <!-- IZQUIERDA: Portada -->
+            <div class="col-md-6 d-flex flex-column">
+              <label class="form-label fw-bold text-muted small">Portada (*)</label>
+
+              <div class="d-flex align-items-center mt-1">
+                <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="document.getElementById('pickImgInput').click()">
+                  Seleccionar archivo
+                </button>
+                <span class="ms-2" id="file-name">Sin archivos seleccionados</span>
+              </div>
+
+              <input type="file" id="pickImgInput" name="portada" class="d-none"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                onchange="document.getElementById('file-name').textContent = this.files[0]?.name || 'Sin archivos seleccionados'">
+
+              <input type="hidden" name="codigo_imagen" id="id_codigo_imagen"
+                value="{{ form.codigo_imagen.value|default:'' }}">
+            </div>
+
+            <!-- DERECHA: Rango etario -->
+            <div class="col-md-6">
+              <label for="{{ form.rango_etario.id_for_label }}" class="form-label fw-bold text-muted small">Rango etario</label>
+              {{ form.rango_etario }}
+              {% if form.rango_etario.errors %}
+              <div class="invalid-feedback d-block">{{ form.rango_etario.errors|striptags }}</div>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+
+        {% endif %}
+
+        <!-- Botonera de navegación entre pasos -->
+        <div class="d-flex w-100 align-items-center position-relative mt-3">
+
+          <!-- Botón anterior / espaciador -->
+          {% if step != "ident" %}
+          <button name="prev" class="btn btn-outline-primary" type="submit">← Anterior</button>
+          {% else %}
+          <span style="width: 110px;"></span> <!-- mismo ancho que el botón para mantener la simetría -->
+          {% endif %}
+
+          <!-- Texto centrado informando campos obligatorios -->
+          <div class="position-absolute start-50 translate-middle-x text-muted small fw-bold">
+            (*) campos obligatorios
+          </div>
+
+          <!-- Botón siguiente / guardar -->
+          {% if step != "comercial" %}
+          <button class="btn btn-primary ms-auto" type="submit">Continuar →</button>
+          {% else %}
+          <button class="btn btn-primary ms-auto" type="submit">Guardar</button>
+          {% endif %}
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- JS de validación para mostrar errores al instante en los campos obligatorios -->
+<script src="{% static 'js/wizard_validacion.js' %}?v=2"></script>
+<script>
+  // Envía automáticamente cuando el usuario elige un archivo
+  (function () {
+    const input = document.getElementById('archivoInput');
+    const form = document.getElementById('uploadForm');
+    if (input && form) {
+      input.addEventListener('change', function () {
+        if (this.files && this.files.length) form.submit();
+      });
+    }
+  })();
+</script>
+
+{% endblock %}
