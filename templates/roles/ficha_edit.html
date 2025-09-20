@@ -13,10 +13,13 @@
   }
   .section-title{margin:6px 0 18px;text-align:center;font-weight:600;color:var(--muted);letter-spacing:.02em}
   .form-grid{max-width:720px;margin:0 auto;display:grid;gap:14px}
-  @media (min-width: 720px){ .grid-2{grid-template-columns:1fr 1fr} .grid-3{grid-template-columns:repeat(3,1fr)} }
+  @media (min-width: 720px){
+    .grid-2{grid-template-columns:1fr 1fr;gap:16px}
+    .grid-3{grid-template-columns:repeat(3,1fr);gap:16px}
+    .grid-4{grid-template-columns:repeat(4,1fr);gap:16px}
+  }
   label{display:block;margin:0 0 6px;font-size:12px;color:var(--muted)}
-  /* Estilo base para inputs/selects/textarea, no depende de clases en el form */
-  input[type="text"], input[type="number"], input[type="date"], select, textarea{
+  input, select, textarea{
     width:100%; padding:10px 12px; border:1px solid var(--input); border-radius:8px;
     background:#fafafa; outline:0; font-size:14px;
   }
@@ -26,11 +29,14 @@
   .divider{height:1px;background:#e5e7eb;margin:24px auto;max-width:720px}
   .footer-note{margin:8px 0 0;text-align:center;font-weight:600}
   .error{color:#b91c1c;font-size:12px;margin-top:4px}
+  .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+  .btn{padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer}
+  .btn-outline{border:1px solid #ccc;background:#fff}
+  .btn-primary{border:0;background:#2563eb;color:#fff}
 </style>
 
 <div class="container py-3">
   <h1>Editar</h1>
-
 
   <div class="card-slim">
     <form method="post" class="form-grid" novalidate>
@@ -41,7 +47,7 @@
         <div class="error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <!-- Identificación del libro -->
+      <!-- Identificación -->
       <h2 class="section-title">Identificación del libro</h2>
       <div class="grid-2">
         <div>
@@ -76,7 +82,7 @@
           {% if form.autor.errors %}<div class="error">{{ form.autor.errors|striptags }}</div>{% endif %}
         </div>
         <div>
-          <label for="{{ form.autor_prologo.id_for_label }}">Autor del prólogo</label>
+          <label for="{{ form.autor_prologo.id_for_label }}">Prólogo</label>
           {{ form.autor_prologo }}
           {% if form.autor_prologo.errors %}<div class="error">{{ form.autor_prologo.errors|striptags }}</div>{% endif %}
         </div>
@@ -95,7 +101,6 @@
 
       <div class="divider"></div>
       <p class="footer-note">Ficha técnica</p>
-
       <div class="grid-3">
         <div>
           <label for="{{ form.tipo_tapa.id_for_label }}">Encuadernación</label>
@@ -103,7 +108,7 @@
           {% if form.tipo_tapa.errors %}<div class="error">{{ form.tipo_tapa.errors|striptags }}</div>{% endif %}
         </div>
         <div>
-          <label for="{{ form.numero_paginas.id_for_label }}">Cant. de páginas</label>
+          <label for="{{ form.numero_paginas.id_for_label }}">Páginas</label>
           {{ form.numero_paginas }}
           {% if form.numero_paginas.errors %}<div class="error">{{ form.numero_paginas.errors|striptags }}</div>{% endif %}
         </div>
@@ -114,7 +119,7 @@
         </div>
       </div>
 
-      <div class="grid-4 grid-2">
+      <div class="grid-4">
         <div>
           <label for="{{ form.alto_cm.id_for_label }}">Alto (cm)</label>
           {{ form.alto_cm }}
@@ -139,10 +144,9 @@
 
       <div class="divider"></div>
       <p class="footer-note">Editorial y edición</p>
-
       <div class="grid-2">
         <div>
-          <label for="{{ form.editorial.id_for_label }}">Sello editorial</label>
+          <label for="{{ form.editorial.id_for_label }}">Editorial</label>
           {{ form.editorial }}
           {% if form.editorial.errors %}<div class="error">{{ form.editorial.errors|striptags }}</div>{% endif %}
         </div>
@@ -160,7 +164,7 @@
           {% if form.fecha_edicion.errors %}<div class="error">{{ form.fecha_edicion.errors|striptags }}</div>{% endif %}
         </div>
         <div>
-          <label for="{{ form.pais_edicion.id_for_label }}">País edición</label>
+          <label for="{{ form.pais_edicion.id_for_label }}">País</label>
           {{ form.pais_edicion }}
           {% if form.pais_edicion.errors %}<div class="error">{{ form.pais_edicion.errors|striptags }}</div>{% endif %}
         </div>
@@ -168,7 +172,7 @@
 
       <div class="grid-2">
         <div>
-          <label for="{{ form.numero_impresion.id_for_label }}">Nº de impresión</label>
+          <label for="{{ form.numero_impresion.id_for_label }}">Nº impresión</label>
           {{ form.numero_impresion }}
           {% if form.numero_impresion.errors %}<div class="error">{{ form.numero_impresion.errors|striptags }}</div>{% endif %}
         </div>
@@ -181,7 +185,6 @@
 
       <div class="divider"></div>
       <p class="footer-note">Comercial</p>
-
       <div class="grid-3">
         <div>
           <label for="{{ form.precio.id_for_label }}">Precio sin IVA</label>
@@ -194,46 +197,36 @@
           {% if form.moneda.errors %}<div class="error">{{ form.moneda.errors|striptags }}</div>{% endif %}
         </div>
         <div>
-          <label for="{{ form.descuento_distribuidor.id_for_label }}">Desc. distribuidor (%)</label>
+          <label for="{{ form.descuento_distribuidor.id_for_label }}">Descuento (%)</label>
           {{ form.descuento_distribuidor }}
           {% if form.descuento_distribuidor.errors %}<div class="error">{{ form.descuento_distribuidor.errors|striptags }}</div>{% endif %}
         </div>
       </div>
 
       <div>
-        <label for="{{ form.resumen_libro.id_for_label }}">Resumen del libro</label>
+        <label for="{{ form.resumen_libro.id_for_label }}">Resumen</label>
         {{ form.resumen_libro }}
         {% if form.resumen_libro.errors %}<div class="error">{{ form.resumen_libro.errors|striptags }}</div>{% endif %}
       </div>
 
       <div class="grid-2">
         <div>
-          <label for="{{ form.rango_etario.id_for_label }}">Rango etario</label>
-          {{ form.rango_etario }}
-          {% if form.rango_etario.errors %}<div class="error">{{ form.rango_etario.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
           <label for="{{ form.codigo_imagen.id_for_label }}">Código imagen</label>
           {{ form.codigo_imagen }}
           {% if form.codigo_imagen.errors %}<div class="error">{{ form.codigo_imagen.errors|striptags }}</div>{% endif %}
         </div>
+        <div>
+          <label for="{{ form.rango_etario.id_for_label }}">Rango etario</label>
+          {{ form.rango_etario }}
+          {% if form.rango_etario.errors %}<div class="error">{{ form.rango_etario.errors|striptags }}</div>{% endif %}
+        </div>
       </div>
 
-      <div class="d-flex gap-2" style="justify-content:flex-end; margin-top:10px;">
-        <a href="{% url 'roles:panel' %}" class="btn btn-outline-secondary btn-sm">Volver</a>
-        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+      <div class="actions">
+        <a href="{% url 'roles:panel' %}" class="btn btn-outline">Volver</a>
+        <button type="submit" class="btn btn-primary">Guardar</button>
       </div>
     </form>
   </div>
 </div>
-
-<script>
-  // autofocus por ?focus=campo (ej: ?focus=titulo)
-  (function(){
-    const f = new URLSearchParams(location.search).get('focus');
-    if (f){ const el = document.querySelector(`[name="${f}"]`);
-      if (el){ el.focus(); el.scrollIntoView({behavior:'smooth', block:'center'}); } }
-  })();
-</script>
 {% endblock %}
-
