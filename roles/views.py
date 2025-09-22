@@ -2,8 +2,9 @@ from __future__ import annotations
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse, HttpRequest
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
+from django.contrib import messages
 
 from .models import Profile, UsuarioEditorial
 from catalogo.models import LibroFicha
@@ -17,6 +18,9 @@ from django import forms
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from urllib.parse import urlencode
+
+#PARA EDITAR
+from .forms_edit import LibroEditForm
 
 
 # ----------------------------
@@ -439,9 +443,35 @@ class LibroCreateWizardView(LoginRequiredMixin, View):
 # Vistas SOLO PROVISIONAL para editar ficha 
 # -----------------------------------------------------------
 
+#class LibroEditView(LoginRequiredMixin, View):
+    #def get(self, request, isbn):
+        #return HttpResponse(f"Editar ficha {isbn}")
+
 class LibroEditView(LoginRequiredMixin, View):
+    template_name = "roles/ficha_edit.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        # asegura que solo EDITOR puede entrar (igual que en el wizard)
+        role = getattr(getattr(request.user, "profile", None), "role", None)
+        if role != Profile.ROLE_EDITOR:
+            return redirect("roles:panel")
+        return super().dispatch(request, *args, **kwargs)
+
     def get(self, request, isbn):
-        return HttpResponse(f"Editar ficha {isbn}")
+        obj = get_object_or_404(LibroFicha, isbn=isbn)
+        form = LibroEditForm(instance=obj, request_user=request.user, allow_change_isbn=False)
+        return render(request, self.template_name, {"form": form, "ficha": obj})
+
+    def post(self, request, isbn):
+        obj = get_object_or_404(LibroFicha, isbn=isbn)
+        form = LibroEditForm(request.POST, instance=obj, request_user=request.user, allow_change_isbn=False)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Edición exitosa", extra_tags="saved")
+            nxt = request.GET.get("next") or request.POST.get("next")
+            return redirect(nxt or reverse("roles:panel"))
+        # si hay errores, vuelve a pintar el mismo template con los errores
+        return render(request, self.template_name, {"form": form, "ficha": obj})
 
 # -----------------------------------------------------------
 # SOLO PROVISIONAL para BOTON CARGA MASIVA

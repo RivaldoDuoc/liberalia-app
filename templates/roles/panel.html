@@ -34,6 +34,15 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
 
 <div class="container py-3">
 
+  {# ---- AVISOS (éxito al editar) ---- (HABRÍA QUE VER SI ESTO VA O NO) #}
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert alert-success py-2 px-3 mb-3" role="alert">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
   <!-- FILTRO PARA ADMIN Y CONSULTOR (SOLO BUSQUEDA POR EDITORIAL) -------->
   <form class="row g-3 align-items-end" method="get" style="max-width:980px;margin:0 auto;">
 
