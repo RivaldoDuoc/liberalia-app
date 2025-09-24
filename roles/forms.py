@@ -5,6 +5,9 @@ import re
 from catalogo.models import LibroFicha, TipoTapa, Moneda, Idioma, Pais
 from roles.models import UsuarioEditorial, Editorial
 
+from django.contrib.auth import get_user_model
+from .models import Profile, Editorial
+
 # ===========================
 # validaciones
 # ===========================
@@ -173,3 +176,38 @@ class LibroComercialForm(BaseEditorForm):
         if val is None or not (0 <= float(val) <= 99.9):
             raise ValidationError("El descuento debe estar entre 0.0 y 99.9%.")
         return val
+
+
+# ===========================
+# FORMULARIO EDITAR USUARIOS (MANTENEDOR USUARIOS)
+# ===========================
+
+User = get_user_model()
+
+class EditarUsuarioForm(forms.Form):
+    username = forms.CharField(
+        label="Username", max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control", "readonly": True})
+    )
+    email = forms.EmailField(
+        label="E-mail",
+        widget=forms.EmailInput(attrs={"class": "form-control", "readonly": True})
+    )
+    nombre = forms.CharField(
+        label="Nombre", max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre"})
+    )
+    apellido = forms.CharField(
+        label="Apellido", max_length=150,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "Apellido"})
+    )
+    rol = forms.ChoiceField(
+        label="Rol", choices=Profile.ROLE_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    editoriales = forms.ModelMultipleChoiceField(
+        label="Sellos editoriales",
+        queryset=Editorial.objects.all().order_by("nombre"),
+        required=False,
+        widget=forms.SelectMultiple(attrs={"class": "form-select", "size": 6})
+    )

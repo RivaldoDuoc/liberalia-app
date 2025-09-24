@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %} Mantenedor de Usuarios {% endblock %}
+{% block content %}
+
+<div class="container py-4" style="max-width:1100px;">
+
+  <h2 class="mb-3 fw-semibold text-center">Mantenedor de Usuarios</h2>
+
+  <!-- Filtros de búsqueda (usuario y editorial) -->
+  <form method="get" class="row g-3 align-items-end mb-3">
+    <div class="col-12 col-md-5">
+      <label class="form-label mb-1">Buscar Usuario</label>
+      <div class="position-relative">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-list"></i></span>
+          <input id="q_usuario" type="text" name="q_usuario" value="{{ q_usuario|default:'' }}" class="form-control"
+            placeholder="Filtrar por nombre, apellido o e-mail">
+          <button class="btn btn-outline-primary" type="submit" title="Buscar">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <!-- Botón X para limpiar el campo y re-ejecutar el filtro -->
+        <button type="button" class="btn btn-link input-clear-btn visually-hidden" data-target="#q_usuario"
+          title="Limpiar">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-5">
+      <label class="form-label mb-1">Buscar Editorial</label>
+      <div class="position-relative">
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-list"></i></span>
+          <input id="q_editorial" type="text" name="q_editorial" value="{{ q_editorial|default:'' }}"
+            class="form-control" placeholder="Filtrar por Sello">
+          <button class="btn btn-outline-primary" type="submit" title="Buscar">
+            <i class="bi bi-search"></i>
+          </button>
+        </div>
+        <!-- Botón X para limpiar el campo y re-ejecutar el filtro -->
+        <button type="button" class="btn btn-link input-clear-btn visually-hidden" data-target="#q_editorial"
+          title="Limpiar">
+          <i class="bi bi-x-circle"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-2 text-md-end">
+      <!-- Botón de invitación (se habilita desde JS según reglas) -->
+      <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
+      <button type="button" class="btn btn-outline-primary w-100" id="btn-invitar" disabled>Invitar</button>
+    </div>
+  </form>
+
+  <!-- Listado de usuarios -->
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead class="table-light thead-brand">
+        <tr>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>E‑mail</th>
+          <th>Rol</th>
+          <th>Editorial(es) Asociada(s)</th>
+          <th class="text-end">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if usuarios %}
+
+        {% for u in usuarios %}
+        {% with rels=u.usuarioeditorial_set.all %}
+        <tr class="{% if not u.is_active %}usuario-inactivo{% endif %}">
+          <td>{{ u.first_name|default:"—" }}</td>
+          <td>{{ u.last_name|default:"—" }}</td>
+          <td>{{ u.email|default:"—" }}</td>
+          <td>
+            {{ u.profile.role|default:"—" }}
+            {% if not u.is_active %}
+            <span class="badge badge-inactivo ms-2">Usuario Inactivo</span>
+            {% endif %}
+          </td>
+
+          <td>
+            {% if rels and rels.count %}
+            {% for rel in rels %}
+            {{ rel.editorial.nombre }}{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-2">
+              <button class="btn btn-outline-primary btn-sm btn-editar" type="button" data-user-id="{{ u.id }}"
+                data-username="{{ u.username }}" data-email="{{ u.email|default:'' }}"
+                data-nombre="{{ u.first_name|default:'' }}" data-apellido="{{ u.last_name|default:'' }}"
+                data-rol="{{ u.profile.role|upper }}"
+                data-es-unico-admin="{% if ultimo_admin_id and ultimo_admin_id == u.id %}1{% else %}0{% endif %}"
+                data-editoriales="{% for rel in u.usuarioeditorial_set.all %}{{ rel.editorial.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                {% if not u.is_active %}disabled{% endif %}>
+                Editar
+              </button>
+
+              <button class="btn btn-outline-primary btn-sm btn-toggle-estado" type="button" data-user-id="{{ u.id }}"
+                data-username="{{ u.username }}" data-nombre="{{ u.first_name|default:'' }}"
+                data-apellido="{{ u.last_name|default:'' }}" data-activo="{% if u.is_active %}1{% else %}0{% endif %}">
+                {% if u.is_active %}Deshabilitar{% else %}Habilitar{% endif %}
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+
+        {% else %}
+        <!-- Vacío: sin resultados -->
+        <tr>
+          <td colspan="6" class="text-center py-4">Sin resultados</td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  {% if is_paginated %}
+  <nav aria-label="Paginación">
+    <ul class="pagination justify-content-center">
+      {% if page_obj.has_previous %}
+      <li class="page-item">
+        <a class="page-link"
+          href="?page={{ page_obj.previous_page_number }}&q_usuario={{ q_usuario }}&q_editorial={{ q_editorial }}">
+          Anterior
+        </a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+      {% endif %}
+
+      <li class="page-item disabled">
+        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+      </li>
+
+      {% if page_obj.has_next %}
+      <li class="page-item">
+        <a class="page-link"
+          href="?page={{ page_obj.next_page_number }}&q_usuario={{ q_usuario }}&q_editorial={{ q_editorial }}">
+          Siguiente
+        </a>
+      </li>
+      {% else %}
+      <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+      {% endif %}
+    </ul>
+  </nav>
+  {% endif %}
+</div>
+
+
+<!-- Modal: Edición de usuario -->
+<div class="modal fade" id="modalEditarUsuario" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-editar">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Usuario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Aquí mostramos feedback (éxito/error) al guardar -->
+        <div class="alert d-none" id="editarAlert"></div>
+
+        <form id="formEditarUsuario">
+          {% csrf_token %}
+          <input type="hidden" id="editarUserId">
+          <div class="mb-2">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-control" id="editarUsername" readonly>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">E-mail</label>
+            <input type="email" class="form-control" id="editarEmail" readonly>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre</label>
+              <input type="text" class="form-control" id="editarNombre" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Apellido</label>
+              <input type="text" class="form-control" id="editarApellido" required>
+            </div>
+          </div>
+
+          <div class="mt-3">
+            <label class="form-label">Rol</label>
+            <select class="form-select" id="editarRol" required>
+              <option value="CONSULTOR">Consultor</option>
+              <option value="EDITOR">Editor</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+            <!-- Nota visible solo cuando es el único ADMIN -->
+            <div class="form-text d-none" id="textoUnicoAdmin">Solo existe un usuario ADMIN. No puede cambiar su rol.
+            </div>
+          </div>
+
+          <!-- Solo aplica para rol EDITOR -->
+          <div class="mt-3" id="grupoEditoriales">
+            <label class="form-label">Sellos editoriales</label>
+            <select class="form-select" id="editarEditoriales" multiple size="6">
+              {% for ed in editoriales_catalogo %}
+              <option value="{{ ed.id }}">{{ ed.nombre }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Selector habilitado solo para Rol=EDITOR</div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Acciones del modal -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-primary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-primary" id="btnGuardarEditar">Guardar</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar guardado -->
+<div class="modal fade" id="modalConfirmGuardar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-confirmar">
+    <div class="modal-content">
+      <div class="modal-body py-4">
+        <p id="confirmGuardarMensaje" class="mb-0 text-center">
+          ¿Deseas guardar los cambios?
+        </p>
+      </div>
+      <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+        <button type="button" class="btn btn-outline-primary me-2" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-primary" id="btnConfirmGuardar">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modal: Confirmar habilitar/deshabilitar -->
+<div class="modal fade" id="modalConfirmToggle" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-confirmar">
+    <div class="modal-content">
+      <div class="modal-body py-4">
+        <p id="confirmToggleMensaje" class="mb-0 text-center">
+          ¿Estás seguro de continuar?
+        </p>
+      </div>
+      <div class="modal-footer justify-content-center border-0 pt-0 pb-4">
+        <button type="button" class="btn btn-outline-primary me-2" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-outline-primary" id="btnConfirmToggle">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast de feedback corto (éxito/estado actualizado) -->
+<div id="toast-general" class="toast align-items-center border-0" role="alert" aria-live="assertive" aria-atomic="true">
+  <div class="d-flex">
+    <div class="toast-body" id="toast-general-body">Usuario actualizado</div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+      aria-label="Cerrar"></button>
+  </div>
+</div>
+
+
+<!-- JS: pasa URL base para ediciones y enlaza lógica externa -->
+<script>
+  window.EDITAR_URL_PATTERN = "{% url 'roles:usuarios_editar' 0 %}";
+</script>
+<script src="{% static 'js/usuarios_editar.js' %}?v=4"></script>
+
+
+<!-- Estilos puntuales del módulo -->
+<style>
+  .thead-brand th {
+    color: var(--brand) !important;
+    font-weight: 700;
+  }
+
+  /* Botón "X" (limpiar) justo antes de la lupa */
+  .input-clear-btn {
+    position: absolute;
+    right: 3rem;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 0;
+    line-height: 1;
+    color: var(--ink-700);
+    font-size: 1rem;
+    z-index: 10;
+  }
+
+  .input-clear-btn:hover {
+    color: var(--brand);
+  }
+
+  /* Mantener color burdeo en outline disabled */
+  .btn-outline-primary:disabled,
+  .btn-outline-primary.disabled {
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+    background-color: transparent !important;
+    opacity: .65;
+    cursor: not-allowed;
+  }
+</style>
+
+<!-- Comportamiento: mostrar/ocultar X y limpiar + enviar -->
+<script>
+  // Mostrar/ocultar botón "X" en inputs según tenga texto
+  document.querySelectorAll('.input-clear-btn').forEach(btn => {
+    const input = document.querySelector(btn.dataset.target);
+    if (!input) return;
+
+    const updateVisibility = () => {
+      btn.classList.toggle('visually-hidden', !input.value.trim());
+    };
+    input.addEventListener('input', updateVisibility);
+    updateVisibility();
+
+    btn.addEventListener('click', () => {
+      input.value = '';
+      input.form.submit();
+    });
+  });
+</script>
+{% endblock %}

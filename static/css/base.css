@@ -48,11 +48,15 @@ main {
 
 /* Logo usado arriba (login y paneles) */
 .brand-logo {
-  height: 100px;   /* controla solo el alto */
-  width: auto;     /* mantiene proporción */
-  object-fit: contain;  /* evita deformación */
+  height: 100px;
+  /* controla solo el alto */
+  width: auto;
+  /* mantiene proporción */
+  object-fit: contain;
+  /* evita deformación */
   display: block;
-  margin-inline: auto;  /* centrado */
+  margin-inline: auto;
+  /* centrado */
 }
 
 /* Logo del footer (más pequeño) */
@@ -86,62 +90,74 @@ main {
 .dropdown-menu .dropdown-item {
   transition: background-color 0.15s ease, color 0.15s ease, border-left 0.15s ease;
   cursor: pointer;
-  border-left: 4px solid transparent; /* espacio reservado para la franja */
-  padding-left: 1rem; /* separa el texto del borde */
+  border-left: 4px solid transparent;
+  /* espacio reservado para la franja */
+  padding-left: 1rem;
+  /* separa el texto del borde */
 }
 
 .dropdown-menu .dropdown-item:hover,
 .dropdown-menu .dropdown-item:focus {
   background-color: var(--bs-dropdown-link-hover-bg) !important;
   color: var(--bs-dropdown-link-hover-color) !important;
-  border-left: 4px solid #d3d3d3; /* Franja al pasar el mouse */
+  border-left: 4px solid #d3d3d3;
+  /* Franja al pasar el mouse */
 }
 
 /* Navbar con franja y ancho limitado */
 .navbar {
-  background-color: #ffe6f0 !important; /* color de franja en NAVBAR */
-  width: 60%;              /* ancho limitado al 60% horizontal */
-  margin: 0 auto;          /* Centrado horizontalmente */
-  border-radius: 0 0 1rem 1rem; /* bordes redondeados abajo */
+  background-color: #ffe6f0 !important;
+  /* color de franja en NAVBAR */
+  width: 60%;
+  /* ancho limitado al 60% horizontal */
+  margin: 0 auto;
+  /* Centrado horizontalmente */
+  border-radius: 0 0 1rem 1rem;
+  /* bordes redondeados abajo */
 }
 
 
 /*IMPORTADOS DE BOOSTSTRAP-BRAND.CSS
 /* ===== Paleta ===== */
-:root{
-  --brand: #7b1e2d;         /* Burdeo principal */
-  --brand-600:#6e1b28;
-  --brand-700:#671824;
-  --brand-100:#f6ecee;
+:root {
+  --brand: #7b1e2d;
+  /* Burdeo principal */
+  --brand-600: #6e1b28;
+  --brand-700: #671824;
+  --brand-100: #f6ecee;
 
-  --ink:#212529;            /* Texto */
-  --ink-700:#343a40;
+  --ink: #212529;
+  /* Texto */
+  --ink-700: #343a40;
 
-  --focus:#0d6efd;          /* color de focus (accesibilidad) */
+  --focus: #0d6efd;
+  /* color de focus (accesibilidad) */
 }
 
 /* ===== Botones principales (unificados) ===== */
-.btn-primary{
+.btn-primary {
   background-color: var(--brand) !important;
   border-color: var(--brand) !important;
   color: #fff !important;
 }
+
 .btn-primary:hover,
-.btn-primary:focus{
+.btn-primary:focus {
   background-color: var(--brand-700) !important;
   border-color: var(--brand-700) !important;
-  color:#fff !important;
+  color: #fff !important;
 }
 
 /* Variante contorno */
-.btn-outline-primary{
+.btn-outline-primary {
   color: var(--brand) !important;
   border-color: var(--brand) !important;
   background: transparent !important;
 }
+
 .btn-outline-primary:hover,
-.btn-outline-primary:focus{
-  color:#fff !important;
+.btn-outline-primary:focus {
+  color: #fff !important;
   background: var(--brand) !important;
   border-color: var(--brand) !important;
 }
@@ -150,62 +166,162 @@ main {
 .btn:focus,
 .form-control:focus,
 .form-select:focus,
-.page-link:focus{
-  box-shadow: 0 0 0 .2rem rgba(13,110,253,.25) !important; /* equivalente Bootstrap */
+.page-link:focus {
+  box-shadow: 0 0 0 .2rem rgba(13, 110, 253, .25) !important;
+  /* equivalente Bootstrap */
   outline: none !important;
 }
 
 /* ===== Links ===== */
-a{ color: var(--brand); }
-a:hover{ color: var(--brand-700); }
+a {
+  color: var(--brand);
+}
+
+a:hover {
+  color: var(--brand-700);
+}
 
 
 
 /* ===== Formulario ===== */
-.form-check-input:checked{
+.form-check-input:checked {
   background-color: var(--brand) !important;
   border-color: var(--brand) !important;
 }
-.form-range::-webkit-slider-thumb{
+
+.form-range::-webkit-slider-thumb {
   background: var(--brand);
 }
 
 /* ===== Badges / Alerts / Pagination ===== */
-.badge.bg-primary{ background: var(--brand) !important; }
-.alert-primary{
+.badge.bg-primary {
+  background: var(--brand) !important;
+}
+
+.alert-primary {
   background: var(--brand-100);
   border-color: var(--brand);
   color: var(--ink);
 }
-.page-item.active .page-link{
+
+.page-item.active .page-link {
   background-color: var(--brand) !important;
   border-color: var(--brand) !important;
 }
 
 /* ===== Tables ===== */
-.table thead th{
+.table thead th {
   text-transform: uppercase;
-  letter-spacing:.02em;
-  font-size:.9rem;
-  white-space:nowrap;
+  letter-spacing: .02em;
+  font-size: .9rem;
+  white-space: nowrap;
 }
+
 .table thead th a,
-.table thead th a:visited{
+.table thead th a:visited {
   color: var(--brand);
   text-decoration: none;
-  font-weight:700;
+  font-weight: 700;
 }
-.table thead th a:hover{
+
+.table thead th a:hover {
   color: var(--brand-700);
 }
 
 /* ===== Cards / Accents ===== */
-.card.border-primary{ border-color: var(--brand) !important; }
-.text-primary{ color: var(--brand) !important; }
+.card.border-primary {
+  border-color: var(--brand) !important;
+}
+
+.text-primary {
+  color: var(--brand) !important;
+}
 
 /* ===== Header tweaks (franja más visible si la quieres reforzar) ===== */
-.navbar.border-bottom{
+.navbar.border-bottom {
   border-bottom-color: var(--brand-100) !important;
 }
 
 
+/*CSS PARA MODAL EDICION DE MANTENEDOR DE USUARIOS
+/* Estilo general para inputs editables */
+#modalEditarUsuario input.form-control,
+#modalEditarUsuario select.form-select {
+  background-color: #ffe6f0 !important;
+}
+
+/* Inputs solo lectura y cursor tipo con bloqueo" */
+#modalEditarUsuario input.form-control[readonly],
+#modalEditarUsuario select.form-select:disabled {
+  background-color: #eef1f5 !important;
+  cursor: not-allowed;
+}
+
+#modalEditarUsuario .form-control[readonly] {
+  border-color: #d9dee3;
+}
+
+/* Selector editorial deshabilitado: gris apagado */
+#modalEditarUsuario select[multiple]:disabled {
+  background-color: #eef1f5 !important;
+}
+
+/* Texto "Solo se usa cuando el rol es Editor" apagado si está deshabilitado */
+#grupoEditoriales[style*="opacity: 0.6"] small {
+  color: #999;
+}
+
+/* Modal de edición más ancho */
+.modal-editar {
+  max-width: 500px;
+  width: 100%;
+}
+
+/* mensaje de confirmación Modal EDITOR */
+.modal-confirmar {
+  max-width: 380px;
+  width: 100%;
+}
+
+/* Fondo personalizado para el modal de confirmación */
+#modalConfirmGuardar .modal-content {
+  background-color: #f5f7fb !important;
+  border: 1px solid #d0d6e2;
+}
+
+/* Opacar SOLO el botón Editar cuando el usuario está inactivo */
+.usuario-inactivo .btn-editar {
+  opacity: .7;
+  cursor: not-allowed;
+}
+
+/* Asegurar que el botón Habilitar quede 100% activo/visible */
+.usuario-inactivo .btn-toggle-estado {
+  opacity: 1 !important;
+  cursor: pointer;
+}
+
+/* Fondo del modal de confirmación (igual que el de guardar) */
+#modalConfirmToggle .modal-content {
+  background-color: #f5f7fb !important;
+  border: 1px solid #d0d6e2;
+}
+
+/* Tamaño compacto (mismo que el de confirmar guardar) */
+.modal-confirmar { max-width: 380px; width: 100%; }
+
+/* Backdrop opaco agradable */
+.modal-backdrop.show { opacity: .55 !important; }
+
+
+/* Fondo personalizado del toast */
+#toast-general {
+  background-color: #7b1e3e !important;  /* Burdeo institucional */
+  color: white;
+}
+
+/* color para aviso usuario inactivo */
+.badge-inactivo {
+  background-color: #a03c3c;
+  color: white;
+}

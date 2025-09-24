@@ -1,14 +1,12 @@
 from __future__ import annotations
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse, HttpRequest
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.http import HttpResponse, HttpRequest, JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib import messages
 
-from templates.reports.search_result import exportar_excel
-
-from .models import Profile, UsuarioEditorial
+from .models import Profile, UsuarioEditorial, Editorial
 from catalogo.models import LibroFicha
 
 import csv
@@ -19,12 +17,15 @@ from decimal import Decimal
 from django import forms
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import ForeignKey
 from urllib.parse import urlencode
-
+from .forms import EditarUsuarioForm
 
 #PARA EDITAR
 from .forms_edit import LibroEditForm
+#PARA MANTENEDOR DE USUARIOS
+from django.contrib.auth import get_user_model
+from django.views.generic import ListView
+from django.db.models import Q, Prefetch
 
 
 # ----------------------------
@@ -216,27 +217,22 @@ class BasePanelView(LoginRequiredMixin, View):
 
 
     def export_csv(self, request: HttpRequest) -> HttpResponse:
-        params = request.GET.copy()
-        params.pop('page', None)
-        params.pop('limit', None)
+        qs = build_queryset_for_user(request.user, request.GET)
 
-        qs = build_queryset_for_user(request.user, params)
-        rows = []
-        for obj in qs:
-            rec = {}
-            for field in obj._meta.fields:
-                name = field.name
-                val = getattr(obj, name)
-                if isinstance(field, ForeignKey):
-                    if val is None:
-                        rec[name] = None
-                    else:
-                        rec[name] = getattr(val, 'nombre', None) or getattr(val, 'code', None) or str(val)
-                else:
-                    rec[name] = val
-            rows.append(rec)
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="libros.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["ISBN", "TÍTULO", "AUTOR", "EDITORIAL", "FECHA_EDICIÓN"])
 
-        return exportar_excel(rows)
+        for r in qs:
+            writer.writerow([
+                r.isbn,
+                r.titulo,
+                r.autor,
+                r.editorial.nombre,
+                r.fecha_edicion.isoformat() if r.fecha_edicion else "",
+            ])
+        return response
 
 
 class PanelView(BasePanelView):
@@ -490,3 +486,163 @@ class LibroEditView(LoginRequiredMixin, View):
 def ficha_upload(request):
     # Por ahora no procesamos nada: si llegó archivo, perfecto; si no, igual volvemos.
     return redirect(f"{reverse('roles:ficha_new')}?step={request.POST.get('step','ident')}")
+
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - LISTAR USUARIOS
+# Paginación : 10 x página
+# -----------------------------------------------------------
+User = get_user_model()
+
+class UsuariosListarView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    template_name = "roles/usuarios.html"
+    context_object_name = "usuarios"
+    paginate_by = 10
+
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def get_queryset(self):
+        q_usuario   = (self.request.GET.get("q_usuario") or "").strip()
+        q_editorial = (self.request.GET.get("q_editorial") or "").strip()
+
+        prefetch = Prefetch(
+            "usuarioeditorial_set",
+            queryset=UsuarioEditorial.objects.select_related("editorial").order_by("editorial__nombre"),
+        )
+
+        qs = (User.objects
+                .select_related("profile")
+                .prefetch_related(prefetch)
+                .order_by("first_name", "last_name"))
+
+        if q_usuario:
+            qs = qs.filter(
+                Q(first_name__icontains=q_usuario) |
+                Q(last_name__icontains=q_usuario)  |
+                Q(email__icontains=q_usuario)
+            )
+
+        if q_editorial:
+            qs = qs.filter(usuarioeditorial__editorial__nombre__icontains=q_editorial).distinct()
+
+        # último admin (si hay uno solo)
+        admins = list(Profile.objects.filter(role=Profile.ROLE_ADMIN).values_list("user_id", flat=True))
+        ultimo_admin_id = admins[0] if len(admins) == 1 else None
+
+        self.extra_context = {
+            "q_usuario": q_usuario,
+            "q_editorial": q_editorial,
+            "editoriales_catalogo": Editorial.objects.all().order_by("nombre"),
+            "ultimo_admin_id": ultimo_admin_id,
+        }
+        return qs
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - EDITAR USUARIOS
+# -----------------------------------------------------------
+
+class EditarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+   
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, user_id):
+        usuario = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+
+        # Datos desde form-encoded o JSON
+        data = request.POST
+        if request.content_type == "application/json":
+            import json
+            data = json.loads(request.body.decode("utf-8"))
+
+        form = EditarUsuarioForm({
+            "username": usuario.username,
+            "email": usuario.email,
+            "nombre": data.get("nombre", "").strip(),
+            "apellido": data.get("apellido", "").strip(),
+            "rol": data.get("rol"),
+        })
+        # preparar M2M
+        editoriales_ids = data.get("editoriales", [])
+        if isinstance(editoriales_ids, str):
+            editoriales_ids = [e for e in editoriales_ids.split(",") if e]
+
+        form.fields["editoriales"].queryset = Editorial.objects.all()
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+        nuevo_rol = form.cleaned_data["rol"]
+
+        # no permitir quitar ADMIN al único admin
+        admins = Profile.objects.filter(role=Profile.ROLE_ADMIN).values_list("user_id", flat=True)
+        if usuario.profile.role == Profile.ROLE_ADMIN and len(admins) == 1 and nuevo_rol != Profile.ROLE_ADMIN:
+            return JsonResponse({"ok": False, "errors": {"rol": ["No puede quitar el rol ADMIN al único Administrador."]}}, status=400)
+
+        # Guardar nombre/apellido
+        usuario.first_name = form.cleaned_data["nombre"]
+        usuario.last_name  = form.cleaned_data["apellido"]
+        usuario.save(update_fields=["first_name", "last_name"])
+
+        # Guardar rol
+        perfil = usuario.profile
+        perfil.role = nuevo_rol
+        perfil.save(update_fields=["role"])
+
+        # Sincronizacion de editoriales
+        if nuevo_rol == Profile.ROLE_EDITOR:
+            nuevos = set(int(i) for i in editoriales_ids) if editoriales_ids else set()
+            actuales = set(UsuarioEditorial.objects.filter(user=usuario).values_list("editorial_id", flat=True))
+            quitar = actuales - nuevos
+            agregar = nuevos - actuales
+            if quitar:
+                UsuarioEditorial.objects.filter(user=usuario, editorial_id__in=quitar).delete()
+            if agregar:
+                UsuarioEditorial.objects.bulk_create(
+                    [UsuarioEditorial(user=usuario, editorial_id=eid) for eid in agregar],
+                    ignore_conflicts=True
+                )
+        else:
+            # no-Editor no tiene asignaciones
+            UsuarioEditorial.objects.filter(user=usuario).delete()
+
+        return JsonResponse({"ok": True})
+    
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - DESHABILITAR/HABILITAR
+# UN ÚNICO USUARIO ADMIN NO SE PUEDE DESACTIVAR A SI MISMO
+# -----------------------------------------------------------
+
+class ToggleUsuarioActivoView(LoginRequiredMixin, UserPassesTestMixin, View):
+
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, user_id):
+        usuario = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+
+        # Cargar JSON body
+        data = request.POST
+        if request.content_type == "application/json":
+            import json
+            data = json.loads(request.body.decode("utf-8"))
+
+        activar = bool(data.get("activar"))
+
+        # Si intentan DESACTIVAR al único admin envía error
+        if not activar and getattr(usuario, "profile", None) and usuario.profile.role == Profile.ROLE_ADMIN:
+            admins = Profile.objects.filter(role=Profile.ROLE_ADMIN, user__is_active=True)\
+                                    .values_list("user_id", flat=True)
+            if len(admins) == 1 and usuario.id in admins:
+                return JsonResponse({
+                    "ok": False,
+                    "error": "No es posible deshabilitar. Solo hay un usuario ADMIN"
+                }, status=400)
+
+        usuario.is_active = activar
+        usuario.save(update_fields=["is_active"])
+
+        return JsonResponse({"ok": True, "is_active": usuario.is_active})
