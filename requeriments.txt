@@ -2,3 +2,4 @@ django
 python-dotenv
 Pillow
 mysqlclient
+openpyxl
