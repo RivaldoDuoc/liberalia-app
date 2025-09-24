@@ -20,7 +20,7 @@ from .views import (
 app_name = "roles"
 
 urlpatterns = [
-    path("panel/", PanelView.as_view(), name="panel"),
+    path("", PanelView.as_view(), name="panel"),
 
     # Wizard de creación (EDITOR)
     path("editor/fichas/nueva/",      LibroCreateWizardView.as_view(), name="ficha_new"),
