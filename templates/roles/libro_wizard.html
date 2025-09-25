@@ -11,16 +11,20 @@
     <h4 class="m-0 text-center">Crear Nueva Ficha</h4>
 
     <!-- Botón “Cargar archivo” -->
-    <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'roles:ficha_upload' %}"
+    <!-- <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'roles:ficha_upload' %}"
       class="position-absolute top-50 end-0 translate-middle-y d-inline">
       {% csrf_token %}
       <input type="hidden" name="step" value="{{ step }}">
       <input type="file" name="archivo" id="archivoInput" class="d-none" accept=".xlsx,.csv,.json,.txt">
-      <button type="button" class="btn btn-outline-primary btn-sm"
-        onclick="document.getElementById('archivoInput').click()">
-        Cargar archivo
+      <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cargaMasivaModal">
+        Carga masiva
       </button>
-    </form>
+    </form> -->
+      <div class="position-absolute top-50 end-0 translate-middle-y d-inline">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cargaMasivaModal">
+        Carga masiva
+      </button>
+      </div>
   </div>
 
   <div class="card shadow-sm">
@@ -321,8 +325,69 @@
   </div>
 </div>
 
+<div class="modal" tabindex="-1" id="cargaMasivaModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Carga Masiva de fichas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <div class="card border-0">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-file-earmark-arrow-down fs-1"></i>
+                <div class="ms-4">
+                  <h5 class="mb-0">Descargar planilla</h5>
+                  <p class="text-muted mb-2">Planilla base</p>
+                  <button type="button" class="btn btn-primary">Descargar</button>
+                </div>
+              </div>
+
+              <!-- <hr class="my-4"> -->
+
+              <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-file-earmark-arrow-up fs-1"></i>
+                <div class="ms-4">
+                  <h5 class="mb-0">Cargar planilla</h5>
+                  <p class="text-muted mb-2">Planilla con fichas</p>
+                  <button type="button" class="btn btn-primary me-2">Cargar</button>
+                  <button type="button" class="btn btn-light border">Enviar</button>
+                </div>
+              </div>
+
+              <!-- <hr class="my-4">  -->
+
+              <div>
+                <h5>Instrucciones</h5>
+                <ol class="list-group list-group-numbered">
+                  <li class="list-group-item border-0 p-0 mb-1">Descargue la planilla base.</li>
+                  <li class="list-group-item border-0 p-0 mb-1">Complete la planilla con la información de las fichas.
+                  </li>
+                  <li class="list-group-item border-0 p-0">Cargue la planilla completada y envíela.</li>
+                </ol>
+              </div>
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- JS de validación para mostrar errores al instante en los campos obligatorios -->
 <script src="{% static 'js/wizard_validacion.js' %}?v=2"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var myModal = new bootstrap.Modal(document.getElementById('cargaMasivaModal'), {
+          // Opcional: si quieres que el usuario pueda cerrarlo haciendo clic fuera
+          backdrop: true 
+        });
+        myModal.show();
+    });
+</script>
 <script>
   // Envía automáticamente cuando el usuario elige un archivo
   (function () {
