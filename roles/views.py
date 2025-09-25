@@ -9,7 +9,8 @@ from django.contrib import messages
 from .models import Profile, UsuarioEditorial, Editorial
 from catalogo.models import LibroFicha
 
-import csv
+from templates.reports.search_result import exportar_excel
+from django.db.models import ForeignKey
 from datetime import datetime, date, datetime as dt
 from django.urls import reverse
 from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm
@@ -217,22 +218,27 @@ class BasePanelView(LoginRequiredMixin, View):
 
 
     def export_csv(self, request: HttpRequest) -> HttpResponse:
-        qs = build_queryset_for_user(request.user, request.GET)
+        params = request.GET.copy()
+        params.pop('page', None)
+        params.pop('limit', None)
 
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = 'attachment; filename="libros.csv"'
-        writer = csv.writer(response)
-        writer.writerow(["ISBN", "TÍTULO", "AUTOR", "EDITORIAL", "FECHA_EDICIÓN"])
+        qs = build_queryset_for_user(request.user, params)
+        rows = []
+        for obj in qs:
+            rec = {}
+            for field in obj._meta.fields:
+                name = field.name
+                val = getattr(obj, name)
+                if isinstance(field, ForeignKey):
+                    if val is None:
+                        rec[name] = None
+                    else:
+                        rec[name] = getattr(val, 'nombre', None) or getattr(val, 'code', None) or str(val)
+                else:
+                    rec[name] = val
+            rows.append(rec)
 
-        for r in qs:
-            writer.writerow([
-                r.isbn,
-                r.titulo,
-                r.autor,
-                r.editorial.nombre,
-                r.fecha_edicion.isoformat() if r.fecha_edicion else "",
-            ])
-        return response
+        return exportar_excel(rows)
 
 
 class PanelView(BasePanelView):
