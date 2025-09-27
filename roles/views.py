@@ -483,6 +483,27 @@ class LibroEditView(LoginRequiredMixin, View):
             return redirect(nxt or reverse("roles:panel"))
         # si hay errores, vuelve a pintar el mismo template con los errores
         return render(request, self.template_name, {"form": form, "ficha": obj})
+    
+
+# -----------------------------------------------------------
+# CLASE PARA ELIMINAR FICHA LIBRO
+# -----------------------------------------------------------
+
+class LibroDeleteView(LoginRequiredMixin, View):
+    def post(self, request, isbn):
+        # Validar permisos: solo EDITOR puede borrar
+        role = getattr(getattr(request.user, "profile", None), "role", None)
+        if role != Profile.ROLE_EDITOR:
+            return redirect("roles:panel")
+
+        obj = get_object_or_404(LibroFicha, isbn=isbn)
+        titulo = obj.titulo
+        obj.delete()
+
+        messages.success(request, f"Eliminación exitosa: {titulo}")
+        return redirect("roles:panel")
+
+# -----------------------------------------------------------    
 
 # -----------------------------------------------------------
 # SOLO PROVISIONAL para BOTON CARGA MASIVA

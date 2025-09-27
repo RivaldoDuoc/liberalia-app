@@ -4,6 +4,13 @@ from django.shortcuts import render, get_object_or_404
 from django.db.models import Q
 from .models import LibroFicha
 
+#Actualización tipo de cambio
+from django.http import JsonResponse, HttpResponseForbidden
+from django.conf import settings
+from catalogo.models import VariableExterna, Moneda
+from catalogo.services import obtener_tipo_cambio
+from decimal import Decimal
+
 @login_required
 def libro_detalle(request, isbn):
     # Normaliza ISBN (acepta con o sin guiones/espacios)
@@ -15,4 +22,42 @@ def libro_detalle(request, isbn):
         )
     )
     return render(request, "catalogo/libro_detalle.html", {"obj": obj})
+
+
+
+def actualizar_tc(request):
+    # Seguridad por token (si no quieres token, elimina este bloque)
+    token = request.GET.get("token")
+    if token != getattr(settings, "CRON_SECRET_TOKEN", None):
+        return HttpResponseForbidden("Token inválido")
+
+    resultados = []
+
+    # indicador en la API -> código ISO en tu tabla Moneda
+    for indicador, iso in {"dolar": "USD", "euro": "EUR"}.items():
+        # 1) obtengo datos desde la API
+        fecha, valor = obtener_tipo_cambio(indicador)
+
+        # 2) obtengo la moneda (asegúrate de tener USD/EUR creados)
+        moneda = Moneda.objects.get(code__iexact=iso)
+
+        # 3) actualizo/creo SIEMPRE la misma fila por (tipo, moneda)
+        obj, created = VariableExterna.objects.update_or_create(
+            tipo="TC",
+            moneda=moneda,                 # <-- lookup
+            defaults={
+                "nombre_tipo": iso,        # "USD" / "EUR" (opcional, pero lo pediste)
+                "valor": Decimal(str(valor)),
+                "fecha_actualizacion": fecha,  # <-- nombre nuevo del campo
+            },
+        )
+
+        resultados.append({
+            "moneda": iso,
+            "fecha": fecha.isoformat(),
+            "valor": str(obj.valor),
+            "created": created,
+        })
+
+    return JsonResponse({"ok": True, "resultados": resultados})
 

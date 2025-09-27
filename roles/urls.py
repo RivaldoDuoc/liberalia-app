@@ -14,7 +14,7 @@ from .views import (
     EditarUsuarioView, #para editar usuarios
     ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
     ficha_upload, # solo para probar carga archivo (validar posteriormente)
-    
+    LibroDeleteView,    
 )
 
 app_name = "roles"
@@ -26,6 +26,7 @@ urlpatterns = [
     path("editor/fichas/nueva/",      LibroCreateWizardView.as_view(), name="ficha_new"),
     path("editor/fichas/<str:isbn>/", LibroEditView.as_view(),         name="ficha_edit"),
     path("editor/fichas/cargar/", ficha_upload, name="ficha_upload"),
+    path("editor/fichas/<str:isbn>/eliminar/", LibroDeleteView.as_view(), name="ficha_eliminar"),
 
     # Mantenedor de usuarios
     path("admin/usuarios/", UsuariosListarView.as_view(), name="usuarios_mantenedor"),
