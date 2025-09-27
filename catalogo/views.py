@@ -61,3 +61,18 @@ def actualizar_tc(request):
 
     return JsonResponse({"ok": True, "resultados": resultados})
 
+ #El método tiene que hacer que el precio del libro sea modificado por la información que tiene la editorial
+    
+def precio_final_sugerido(self) -> Decimal:
+        """
+        Calcula el precio sugerido considerando los porcentajes
+        definidos en la editorial.
+        """
+        total = (
+            (self.editorial.cargo_origen or 0) +
+            (self.editorial.recargo_fletes or 0) +
+            (self.editorial.gastos_indirectos or 0) +
+            (self.editorial.margen_comercializacion or 0)
+        )
+        return self.precio * (Decimal("1") + Decimal(total) / Decimal("100"))
+    
