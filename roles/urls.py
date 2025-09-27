@@ -14,7 +14,7 @@ from .views import (
     EditarUsuarioView, #para editar usuarios
     ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
     ficha_upload, # solo para probar carga archivo (validar posteriormente)
-    
+    descargar_plantilla_excel
 )
 
 app_name = "roles"
@@ -31,5 +31,7 @@ urlpatterns = [
     path("admin/usuarios/", UsuariosListarView.as_view(), name="usuarios_mantenedor"),
     path("admin/usuarios/<int:user_id>/editar/", EditarUsuarioView.as_view(), name="usuarios_editar"),
     path("admin/usuarios/<int:user_id>/toggle-activo/", ToggleUsuarioActivoView.as_view(), name="usuarios_toggle_activo"),
+
+    path('descargar/descargar_plantilla_excel/', descargar_plantilla_excel, name='descargar_plantilla_excel')
 ]
 

@@ -28,6 +28,10 @@ from django.contrib.auth import get_user_model
 from django.views.generic import ListView
 from django.db.models import Q, Prefetch
 
+import os
+from django.http import FileResponse
+from django.conf import settings
+
 
 # ----------------------------
 # Helpers de rol
@@ -652,3 +656,35 @@ class ToggleUsuarioActivoView(LoginRequiredMixin, UserPassesTestMixin, View):
         usuario.save(update_fields=["is_active"])
 
         return JsonResponse({"ok": True, "is_active": usuario.is_active})
+    
+## Descarga de plantilla Excel para carga masiva de fichas
+@login_required
+def descargar_plantilla_excel(request):
+       # 1. Definir la ruta completa al archivo
+    # Usamos settings.BASE_DIR para garantizar que la ruta sea absoluta y correcta
+    # 'static/file/carga_masiva.xlsx' es la ruta relativa desde la raíz del proyecto.
+    ruta_archivo = os.path.join(
+        settings.BASE_DIR, 
+        'static', 
+        'file', 
+        'carga_masiva.xlsx'
+    )
+
+    # Verifica si el archivo existe (opcional, pero buena práctica)
+    if not os.path.exists(ruta_archivo):
+        # Manejar el error si el archivo no se encuentra
+        return HttpResponse("El archivo no se encontró.", status=404)
+
+    # 2. Servir el archivo usando FileResponse
+    try:
+        # Abre el archivo en modo binario de lectura ('rb')
+        response = FileResponse(open(ruta_archivo, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # 3. Configurar el encabezado de descarga
+        # 'attachment' fuerza al navegador a descargar el archivo en lugar de mostrarlo
+        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
+        
+        return response
+    except Exception as e:
+        # Manejo de errores de lectura
+        return HttpResponse(f"Error al servir el archivo: {e}", status=500)
