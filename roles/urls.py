@@ -12,6 +12,7 @@ from .views import (
     LibroEditView,             # editar (para los templates de edición)
     UsuariosListarView,     # lista de usuarios (Mantenedor de Usuarios)
     EditarUsuarioView, #para editar usuarios
+    InvitarUsuarioView, #invitar usuarios
     ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
     ficha_upload, # solo para probar carga archivo (validar posteriormente)
     LibroDeleteView,    
@@ -32,5 +33,6 @@ urlpatterns = [
     path("admin/usuarios/", UsuariosListarView.as_view(), name="usuarios_mantenedor"),
     path("admin/usuarios/<int:user_id>/editar/", EditarUsuarioView.as_view(), name="usuarios_editar"),
     path("admin/usuarios/<int:user_id>/toggle-activo/", ToggleUsuarioActivoView.as_view(), name="usuarios_toggle_activo"),
+    path("admin/usuarios/invitar/", InvitarUsuarioView.as_view(), name="usuarios_invitar"),
 ]
 
