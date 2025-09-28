@@ -1,3 +1,4 @@
+{% load static %}
 <div class="modal" tabindex="-1" id="cargaMasivaModal">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -24,8 +25,11 @@
                 <div class="ms-4">
                   <h5 class="mb-0">Cargar plantilla</h5>
                   <p class="text-muted mb-2">Plantilla con fichas</p>
-                  <button type="button" class="btn btn-primary me-2">Cargar</button>
-                  <button type="button" class="btn btn-light border">Enviar</button>
+                  <input type="file" id="cargaMasivaFile" accept=".xlsx,.xls" class="d-none" />
+                  <button type="button" id="btnCargarFile" class="btn btn-primary me-2">Cargar</button>
+                  <button type="button" id="btnEnviarCarga" class="btn btn-light border" disabled>Enviar</button>
+                  <div id="cargaMasivaFilename" class="small text-muted mt-2"></div>
+                  <div id="cargaMasivaErrors" class="mt-2 text-danger" style="white-space:pre-wrap;"></div>
                 </div>
               </div>
 
@@ -50,11 +54,10 @@
   </div>
 </div>
 
-<!-- <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var myModal = new bootstrap.Modal(document.getElementById('cargaMasivaModal'), {
-          backdrop: true 
-        });
-        myModal.show();
-    });
-</script> -->
+<!-- Scripts para carga masiva: SheetJS (para parsear XLSX en el navegador) y nuestro código -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  // URL para enviar JSON de carga masiva (incluye prefijo 'panel/' desde urls.py)
+  window.UPLOAD_JSON_URL = "{% url 'roles:ficha_upload_json' %}";
+</script>
+<script src="{% static 'js/carga_masiva.js' %}"></script>

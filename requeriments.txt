@@ -3,3 +3,4 @@ python-dotenv
 Pillow
 mysqlclient
 openpyxl
+requests

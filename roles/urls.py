@@ -14,8 +14,10 @@ from .views import (
     EditarUsuarioView, #para editar usuarios
     InvitarUsuarioView, #invitar usuarios
     ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
-    ficha_upload, # solo para probar carga archivo (validar posteriormente)
-    LibroDeleteView,    
+    LibroDeleteView,
+    ficha_upload,
+    upload_fichas_json,
+    descargar_plantilla_excel
 )
 
 app_name = "roles"
@@ -25,8 +27,10 @@ urlpatterns = [
 
     # Wizard de creación (EDITOR)
     path("editor/fichas/nueva/",      LibroCreateWizardView.as_view(), name="ficha_new"),
-    path("editor/fichas/<str:isbn>/", LibroEditView.as_view(),         name="ficha_edit"),
     path("editor/fichas/cargar/", ficha_upload, name="ficha_upload"),
+    path("editor/fichas/upload-json/", upload_fichas_json, name="ficha_upload_json"),
+    path('descargar/descargar_plantilla_excel/', descargar_plantilla_excel, name='descargar_plantilla_excel'),
+    path("editor/fichas/<str:isbn>/", LibroEditView.as_view(),         name="ficha_edit"),
     path("editor/fichas/<str:isbn>/eliminar/", LibroDeleteView.as_view(), name="ficha_eliminar"),
 
     # Mantenedor de usuarios

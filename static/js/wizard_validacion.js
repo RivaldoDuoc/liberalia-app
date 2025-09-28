@@ -216,3 +216,98 @@
 
   
 })();
+
+// Exponer validadores reutilizables para uso por otros scripts (p.ej. carga masiva)
+(function () {
+  // Reuse helpers defined above where possible; redefine minimal helpers to avoid scope issues
+  const norm = s => (s || "").toString().replace(/[\s-]+/g, "").toUpperCase();
+
+  function isValidISBN10(code) {
+    if (!/^[0-9]{9}[0-9X]$/.test(code)) return false;
+    let sum = 0;
+    for (let i = 0; i < 10; i++) {
+      const ch = code[i] === 'X' ? 10 : parseInt(code[i], 10);
+      sum += ch * (10 - i);
+    }
+    return sum % 11 === 0;
+  }
+  function isValidEAN13(code) {
+    if (!/^\d{13}$/.test(code)) return false;
+    const digits = code.split('').map(Number);
+    const checksum = digits.slice(0, 12).reduce((acc, d, i) => acc + d * (i % 2 ? 3 : 1), 0);
+    const check = (10 - (checksum % 10)) % 10;
+    return check === digits[12];
+  }
+
+  function validateRowObject(row) {
+    // row: object with keys normalized to snake_case lowercase (ex: 'isbn', 'tipo_tapa')
+    const errors = {};
+    // isbn
+    const isbn = (row.isbn || '').toString().trim();
+    const isbnNorm = norm(isbn);
+    // if (!isbnNorm) errors.isbn = 'ISBN obligatorio.';
+    // else if (isbnNorm.length === 10) { if (!isValidISBN10(isbnNorm)) errors.isbn = 'ISBN-10 inválido.'; }
+    // else if (isbnNorm.length === 13) { if (!isValidEAN13(isbnNorm)) errors.isbn = 'ISBN-13 inválido.'; }
+    // else errors.isbn = 'ISBN debe tener 10 o 13 caracteres.';
+
+    // ean optional
+    const ean = (row.ean || '').toString().trim();
+    if (ean) {
+      const en = ean.replace(/\D/g, '');
+      if (en && en.length === 13 && !isValidEAN13(en)) errors.ean = 'EAN inválido.';
+    }
+
+    // editorial
+    if (!row.editorial || String(row.editorial).trim() === '') errors.editorial = 'Editorial obligatoria.';
+
+    // titulo/autor
+    if (!row.titulo || String(row.titulo).trim() === '') errors.titulo = 'Título obligatorio.';
+    if (!row.autor || String(row.autor).trim() === '') errors.autor = 'Autor obligatorio.';
+
+    // tipo_tapa, idioma_original, pais_edicion required
+    if (!row.tipo_tapa || String(row.tipo_tapa).trim() === '') errors.tipo_tapa = 'Tipo tapa obligatorio.';
+    if (!row.idioma_original || String(row.idioma_original).trim() === '') errors.idioma_original = 'Idioma obligatorio.';
+    if (!row.pais_edicion || String(row.pais_edicion).trim() === '') errors.pais_edicion = 'País edición obligatorio.';
+
+    // numero_paginas, numero_edicion
+    const np = Number(row.numero_paginas);
+    if (!row.numero_paginas || !Number.isInteger(np) || np < 1) errors.numero_paginas = 'Número de páginas entero ≥ 1.';
+    const ne = Number(row.numero_edicion);
+    if (!row.numero_edicion || !Number.isInteger(ne) || ne < 1) errors.numero_edicion = 'Número edición entero ≥ 1.';
+
+    // fecha_edicion accept ISO yyyy-mm-dd or try parse
+    const fech = row.fecha_edicion;
+    let fecha_ok = false;
+    if (fech === null || fech === undefined || String(fech).trim() === '') {
+      fecha_ok = false;
+    } else if (typeof fech === 'string') {
+      fecha_ok = /^\d{4}-\d{2}-\d{2}$/.test(fech.trim());
+    } else if (typeof fech === 'number') {
+      // excel serial; accept and leave to server
+      fecha_ok = true;
+    } else if (fech instanceof Date) fecha_ok = true;
+    if (!fecha_ok) errors.fecha_edicion = 'Fecha edición inválida.';
+
+    // precio
+    const precio = Number(row.precio);
+    if (row.precio === null || row.precio === undefined || row.precio === '') errors.precio = 'Precio obligatorio.';
+    else if (!Number.isFinite(precio) || precio < 0) errors.precio = 'Precio debe ser ≥ 0.';
+
+    // moneda
+    if (!row.moneda || String(row.moneda).trim() === '') errors.moneda = 'Moneda obligatoria.';
+
+    // descuento_distribuidor
+    const desc = Number(row.descuento_distribuidor);
+    if (row.descuento_distribuidor === null || row.descuento_distribuidor === undefined || row.descuento_distribuidor === '') errors.descuento_distribuidor = 'Descuento obligatorio.';
+    else if (!Number.isFinite(desc) || desc < 0 || desc > 99.9) errors.descuento_distribuidor = 'Descuento debe estar entre 0.0 y 99.9.';
+
+    // resumen_libro
+    if (!row.resumen_libro || String(row.resumen_libro).trim() === '') errors.resumen_libro = 'Resumen obligatorio.';
+
+    const ok = Object.keys(errors).length === 0;
+    return { ok, errors };
+  }
+
+  window.LibroValidators = window.LibroValidators || {};
+  window.LibroValidators.validateRow = validateRowObject;
+})();

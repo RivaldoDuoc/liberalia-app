@@ -7,7 +7,7 @@ from django.views import View
 from django.contrib import messages
 
 from .models import Profile, UsuarioEditorial, Editorial
-from catalogo.models import LibroFicha
+from catalogo.models import LibroFicha, TipoTapa, Idioma, Pais, Moneda
 
 from templates.reports.search_result import exportar_excel
 from django.db.models import ForeignKey
@@ -824,3 +824,272 @@ class InvitarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({"ok": False, "error": f"Error interno: {e.__class__.__name__}: {e}"}, status=500)
             return JsonResponse({"ok": False, "error": "Error interno del servidor."}, status=500)
+
+## Descarga de plantilla Excel para carga masiva de fichas
+@login_required
+def descargar_plantilla_excel(request):
+       # 1. Definir la ruta completa al archivo
+    # Usamos settings.BASE_DIR para garantizar que la ruta sea absoluta y correcta
+    # 'static/file/carga_masiva.xlsx' es la ruta relativa desde la raíz del proyecto.
+    ruta_archivo = os.path.join(
+        settings.BASE_DIR, 
+        'static', 
+        'file', 
+        'carga_masiva.xlsx'
+    )
+
+    # Verifica si el archivo existe (opcional, pero buena práctica)
+    if not os.path.exists(ruta_archivo):
+        # Manejar el error si el archivo no se encuentra
+        return HttpResponse("El archivo no se encontró.", status=404)
+
+    # 2. Servir el archivo usando FileResponse
+    try:
+        # Abre el archivo en modo binario de lectura ('rb')
+        response = FileResponse(open(ruta_archivo, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # 3. Configurar el encabezado de descarga
+        # 'attachment' fuerza al navegador a descargar el archivo en lugar de mostrarlo
+        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
+        
+        return response
+    except Exception as e:
+        # Manejo de errores de lectura
+        return HttpResponse(f"Error al servir el archivo: {e}", status=500)
+
+
+@login_required
+def upload_fichas_json(request):
+    print(">>> upload_fichas_json called")
+    """
+    Endpoint que acepta POST JSON { rows: [ {..fila..}, ... ] }
+    Valida mínimamente y crea LibroFicha por fila. Devuelve JSON con resumen.
+    Reglas simplificadas:
+    - Debe ser usuario con role EDITOR
+    - Resuelve FKs buscando por 'nombre' (editorial, tipo_tapa) o por code (idioma, pais, moneda)
+    - Retorna detalles de filas fallidas
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
+
+    # rol
+    role = getattr(getattr(request.user, 'profile', None), 'role', None)
+    if role != Profile.ROLE_EDITOR:
+        return JsonResponse({'ok': False, 'error': 'No autorizado'}, status=403)
+
+    import json
+    from decimal import Decimal
+    from datetime import datetime, timedelta, date
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    rows = payload.get('rows') or []
+    created = 0
+    failed = []
+    logger = logging.getLogger(__name__)
+
+    # Helpers
+    def excel_date_to_date(n):
+        # Excel serial (1900-based) -> date; handle ints/floats
+        try:
+            base = datetime(1899, 12, 30)
+            return (base + timedelta(days=float(n))).date()
+        except Exception:
+            return None
+
+    def resolve_editorial(val):
+        if val is None:
+            return None
+        v = str(val).strip()
+        if v.isdigit():
+            try:
+                return Editorial.objects.get(pk=int(v))
+            except Editorial.DoesNotExist:
+                return None
+        return Editorial.objects.filter(nombre__iexact=v).first()
+
+    def resolve_tipo_tapa(val):
+        if val is None: return None
+        v = str(val).strip()
+        return TipoTapa.objects.filter(nombre__iexact=v).first()
+
+    def resolve_idioma(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Idioma.objects.filter(code__iexact=v).first() or Idioma.objects.filter(nombre__iexact=v).first()
+
+    def resolve_pais(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Pais.objects.filter(code__iexact=v).first() or Pais.objects.filter(nombre__iexact=v).first()
+
+    def resolve_moneda(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Moneda.objects.filter(code__iexact=v).first() or Moneda.objects.filter(nombre__iexact=v).first()
+
+    # --- 1) VALIDAR TODO SIN INSERTAR ---
+    validated = []
+    input_isbns = []
+    for idx, row in enumerate(rows, start=1):
+        isbn = str(row.get('isbn') or '').strip()
+        input_isbns.append(isbn)
+
+    # chequear duplicados dentro del archivo
+    from collections import Counter
+    counts = Counter(input_isbns)
+    duplicates_in_file = {k for k, v in counts.items() if k and v > 1}
+
+    # chequear existentes en DB
+    existing_isbns = set(LibroFicha.objects.filter(isbn__in=[i for i in input_isbns if i]).values_list('isbn', flat=True))
+
+    for idx, row in enumerate(rows, start=1):
+        try:
+            # simple checks
+            isbn = str(row.get('isbn') or '').strip()
+            titulo = str(row.get('titulo') or '').strip()
+            if not isbn or not titulo:
+                raise ValueError('isbn/titulo obligatorios')
+            if isbn in duplicates_in_file:
+                raise ValueError('ISBN duplicado dentro del archivo')
+            if isbn in existing_isbns:
+                raise ValueError('ISBN ya existe en la base de datos')
+
+            editorial = resolve_editorial(row.get('editorial'))
+            if not editorial:
+                raise ValueError('Editorial no encontrada')
+
+            tipo_tapa = resolve_tipo_tapa(row.get('tipo_tapa'))
+            if not tipo_tapa:
+                raise ValueError('Tipo tapa no encontrado')
+
+            # ints
+            try:
+                numero_paginas = int(row.get('numero_paginas'))
+            except Exception:
+                raise ValueError('numero_paginas inválido')
+
+            idioma = resolve_idioma(row.get('idioma_original'))
+            if not idioma:
+                raise ValueError('Idioma original no encontrado')
+
+            try:
+                numero_edicion = int(row.get('numero_edicion'))
+            except Exception:
+                raise ValueError('numero_edicion inválido')
+
+            # fecha
+            fecha_val = row.get('fecha_edicion')
+            fecha = None
+            if isinstance(fecha_val, (int, float)):
+                fecha = excel_date_to_date(fecha_val)
+            elif isinstance(fecha_val, str):
+                try:
+                    fecha = datetime.fromisoformat(fecha_val).date()
+                except Exception:
+                    # try common formats
+                    try:
+                        fecha = datetime.strptime(fecha_val, '%Y-%m-%d').date()
+                    except Exception:
+                        fecha = None
+            elif hasattr(fecha_val, 'year'):
+                fecha = date(fecha_val.year, fecha_val.month, fecha_val.day)
+
+            if not fecha:
+                raise ValueError('fecha_edicion inválida')
+
+            pais = resolve_pais(row.get('pais_edicion'))
+            if not pais:
+                raise ValueError('Pais edición no encontrado')
+
+            # comerciales
+            try:
+                precio = Decimal(str(row.get('precio')))
+            except Exception:
+                raise ValueError('precio inválido')
+
+            moneda = resolve_moneda(row.get('moneda'))
+            if not moneda:
+                raise ValueError('Moneda no encontrada')
+
+            try:
+                descuento = Decimal(str(row.get('descuento_distribuidor') or '0'))
+            except Exception:
+                raise ValueError('descuento_distribuidor inválido')
+
+            # preparar datos limpios para crear
+            clean = {
+                'isbn': isbn,
+                'titulo': titulo,
+                'ean': row.get('ean') or None,
+                'editorial': editorial,
+                'autor': row.get('autor') or '',
+                'autor_prologo': row.get('autor_prologo') or None,
+                'traductor': row.get('traductor') or None,
+                'ilustrador': row.get('ilustrador') or None,
+                'tipo_tapa': tipo_tapa,
+                'numero_paginas': numero_paginas,
+                'alto_cm': row.get('alto_cm') or None,
+                'ancho_cm': row.get('ancho_cm') or None,
+                'grosor_cm': row.get('grosor_cm') or None,
+                'peso_gr': row.get('peso_gr') or None,
+                'idioma_original': idioma,
+                'numero_edicion': numero_edicion,
+                'fecha_edicion': fecha,
+                'pais_edicion': pais,
+                'numero_impresion': row.get('numero_impresion') or None,
+                'tematica': row.get('tematica') or None,
+                'precio': precio,
+                'moneda': moneda,
+                'descuento_distribuidor': descuento,
+                'resumen_libro': row.get('resumen_libro') or '',
+                'codigo_imagen': row.get('codigo_imagen') or None,
+                'rango_etario': row.get('rango_etario') or None,
+                'subtitulo': row.get('subtitulo') or None,
+            }
+
+            validated.append((idx, clean, row))
+
+        except Exception as e:
+            # Map some internal messages to user-friendly messages
+            raw_msg = str(e)
+            if 'ISBN ya existe' in raw_msg:
+                client_msg = 'Ese ISBN ya existe'
+            else:
+                client_msg = raw_msg
+
+            # Log full details server-side (stack/row) but don't expose row_data to the client
+            try:
+                logger.error("Carga masiva - fila %s: %s ; datos: %s", idx, raw_msg, row)
+            except Exception:
+                # fallback to simple print if logging misconfigured
+                print(f"Carga masiva - fila {idx}: {raw_msg} ; datos: {row}")
+
+            failed.append({'row': idx, 'error': client_msg})
+
+    # Si hubo fallos en validación, retornamos sin insertar nada
+    if failed:
+        return JsonResponse({'ok': False, 'created': 0, 'failed': len(failed), 'errors': failed}, status=400)
+
+    # --- 2) CREAR todos los registros en bloque dentro de una transacción ---
+    from django.db import transaction
+    instances = []
+    for idx, clean, orig_row in validated:
+        instances.append(LibroFicha(**clean))
+
+    try:
+        with transaction.atomic():
+            LibroFicha.objects.bulk_create(instances)
+        created = len(instances)
+    except Exception as e:
+        # error inesperado al insertar: loggear detalles y retornar mensaje genérico al cliente
+        try:
+            logger.exception("Error al insertar cargas masivas: %s", e)
+        except Exception:
+            print("Error al insertar cargas masivas:", e)
+        return JsonResponse({'ok': False, 'created': 0, 'failed': len(instances), 'errors': [{'row': None, 'error': 'Error interno al crear registros. Contacte al administrador.'}]}, status=500)
+
+    return JsonResponse({'ok': True, 'created': created, 'failed': len(failed), 'errors': failed})
