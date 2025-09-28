@@ -1,6 +1,9 @@
 
 from django.db import models
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+from datetime import date
 from roles.models import Editorial  # FK existente en app Roles
 
 # ============================
@@ -158,3 +161,37 @@ class LibroFicha(models.Model):
 
     def __str__(self) -> str:
         return f"{self.isbn} · {self.titulo}"
+
+
+# ============================
+# VARIABLES EXTERNAS
+# ============================
+class VariableExterna(models.Model):
+    TIPO_IVA = "IVA"
+    TIPO_TC  = "TC"
+    TIPO_CHOICES = [
+        (TIPO_IVA, "IVA"),
+        (TIPO_TC,  "Tipo de cambio"),
+    ]
+
+    tipo   = models.CharField(max_length=10, choices=TIPO_CHOICES)   # IVA o TC
+    moneda = models.ForeignKey("catalogo.Moneda", null=True, blank=True, on_delete=models.CASCADE)
+
+    # Nueva columna para redundancia simple (ej: "USD", "EUR", "IVA")
+    nombre_tipo = models.CharField(max_length=10, blank=True, null=True, help_text="Ej: USD, EUR, IVA")
+
+    # Renombrado: antes 'fecha'
+    fecha_actualizacion = models.DateField(null=True, blank=True)
+
+    valor  = models.DecimalField(max_digits=12, decimal_places=4, validators=[MinValueValidator(0)])
+
+    class Meta:
+        unique_together = ("tipo", "moneda")
+        indexes = [
+            models.Index(fields=["tipo", "moneda"]),
+            models.Index(fields=["nombre_tipo"]),
+        ]
+        ordering = ["tipo", "moneda"]
+
+    def __str__(self):
+        return f"{self.tipo} {self.nombre_tipo or ''} = {self.valor}"

@@ -1,0 +1,63 @@
+{% load static %}
+<div class="modal" tabindex="-1" id="cargaMasivaModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Carga Masiva de fichas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <div class="card border-0">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-file-earmark-arrow-down fs-1"></i>
+                <div class="ms-4">
+                  <h5 class="mb-0">Descargar plantilla</h5>
+                  <p class="text-muted mb-2">Plantilla base</p>
+                  <a href="{% url 'roles:descargar_plantilla_excel' %}" class="btn btn-primary">Descargar</a>
+                </div>
+              </div>
+
+              <!-- <hr class="my-4"> -->
+
+              <div class="d-flex align-items-center mb-4">
+                <i class="bi bi-file-earmark-arrow-up fs-1"></i>
+                <div class="ms-4">
+                  <h5 class="mb-0">Cargar plantilla</h5>
+                  <p class="text-muted mb-2">Plantilla con fichas</p>
+                  <input type="file" id="cargaMasivaFile" accept=".xlsx,.xls" class="d-none" />
+                  <button type="button" id="btnCargarFile" class="btn btn-primary me-2">Cargar</button>
+                  <button type="button" id="btnEnviarCarga" class="btn btn-light border" disabled>Enviar</button>
+                  <div id="cargaMasivaFilename" class="small text-muted mt-2"></div>
+                  <div id="cargaMasivaErrors" class="mt-2 text-danger" style="white-space:pre-wrap;"></div>
+                </div>
+              </div>
+
+              <!-- <hr class="my-4">  -->
+
+              <div>
+                <h5>Instrucciones</h5>
+                <ol class="list-group list-group-numbered">
+                  <li class="list-group-item border-0 p-0 mb-1">Descargue la plantilla base.</li>
+                  <li class="list-group-item border-0 p-0 mb-1">Complete la plantilla con la información de las fichas.
+                  </li>
+                  <li class="list-group-item border-0 p-0">Cargue la plantilla completada y envíela.</li>
+                </ol>
+              </div>
+            </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts para carga masiva: SheetJS (para parsear XLSX en el navegador) y nuestro código -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  // URL para enviar JSON de carga masiva (incluye prefijo 'panel/' desde urls.py)
+  window.UPLOAD_JSON_URL = "{% url 'roles:ficha_upload_json' %}";
+</script>
+<script src="{% static 'js/carga_masiva.js' %}"></script>

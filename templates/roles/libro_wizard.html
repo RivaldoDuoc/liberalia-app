@@ -11,16 +11,20 @@
     <h4 class="m-0 text-center">Crear Nueva Ficha</h4>
 
     <!-- Botón “Cargar archivo” -->
-    <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'roles:ficha_upload' %}"
+    <!-- <form id="uploadForm" method="post" enctype="multipart/form-data" action="{% url 'roles:ficha_upload' %}"
       class="position-absolute top-50 end-0 translate-middle-y d-inline">
       {% csrf_token %}
       <input type="hidden" name="step" value="{{ step }}">
       <input type="file" name="archivo" id="archivoInput" class="d-none" accept=".xlsx,.csv,.json,.txt">
-      <button type="button" class="btn btn-outline-primary btn-sm"
-        onclick="document.getElementById('archivoInput').click()">
-        Cargar archivo
+      <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cargaMasivaModal">
+        Carga masiva
       </button>
-    </form>
+    </form> -->
+      <div class="position-absolute top-50 end-0 translate-middle-y d-inline">
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#cargaMasivaModal">
+        Carga masiva
+      </button>
+      </div>
   </div>
 
   <div class="card shadow-sm">
@@ -321,8 +325,11 @@
   </div>
 </div>
 
+{% include 'roles/modals/carga_masiva_modal.html' %}
+
 <!-- JS de validación para mostrar errores al instante en los campos obligatorios -->
 <script src="{% static 'js/wizard_validacion.js' %}?v=2"></script>
+
 <script>
   // Envía automáticamente cuando el usuario elige un archivo
   (function () {

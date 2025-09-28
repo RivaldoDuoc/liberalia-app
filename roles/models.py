@@ -26,6 +26,11 @@ y las editoriales a las que pertenecen.
 from django.conf import settings
 from django.db import models
 
+# Los valores deben tener un rango
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
+
+
 
 # Definir el catálogo de editoriales para poder asociarlas a los usuarios 
 # según su rol y utilizarlas en distintas partes del sistema.
@@ -34,11 +39,37 @@ class Editorial(models.Model):
     nombre = models.CharField(max_length=150)
     id_fiscal = models.CharField(max_length=50, blank=True, null=True)
 
+    #NUEVOS CAMPOS QUE DEBEN AGREGARSE -- ¿Se agrega acá porque dependen de la editorial y no el libro? 
+
+    cargo_origen = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Cargo origen (% sobre el costo del libro)"
+    )
+    recargo_fletes = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Recargo fletes y gastos (% sobre el costo)"
+    )
+    gastos_indirectos = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Gastos indirectos (% sobre el costo)"
+    )
+    margen_comercializacion = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Margen de comercialización (% sobre el costo)"
+    )
+
+    #Meta sirve para cambiar el nombre que aparece en el admin de Django.
+
     class Meta:
         verbose_name = "Editorial"
         verbose_name_plural = "Editoriales"
 
-    # Mostramos el nombre de la editorial en el admin y otros contextos
+    # Mostramos el nombre de la editorial en el admin y otros contextos.
+    # No tocar
     def __str__(self) -> str:        
         return self.nombre
 

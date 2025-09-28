@@ -223,10 +223,29 @@
       </div>
 
       <div class="actions">
+
+        {# Botón que abre el modal de confirmación #}
+        <button type="button"
+          class="btn btn-danger btn-sm"
+          style="margin-right:auto"
+          data-bs-toggle="modal"
+          data-bs-target="#confirmDeleteModal">
+          Eliminar ficha
+        </button>
         <a href="{% url 'roles:panel' %}" class="btn btn-outline">Volver</a>
         <button type="submit" class="btn btn-primary">Guardar</button>
+
+        
+
+
+
+        
       </div>
     </form>
   </div>
 </div>
+
+
+{% include "roles/confirm_delete_modal.html" %}
+
 {% endblock %}

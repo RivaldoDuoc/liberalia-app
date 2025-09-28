@@ -44,7 +44,7 @@ Plantilla base de Liberalia:
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
               {% if request.user.profile.role == 'ADMIN' %}
-              <li><a class="dropdown-item" href="#">Mantenedor usuarios</a></li>
+              <li><a class="dropdown-item" href="{% url 'roles:usuarios_mantenedor' %}">Mantenedor usuarios</a></li>
               <li><a class="dropdown-item" href="#">Mantenedor editoriales</a></li>
               {% endif %}
 

@@ -1,15 +1,16 @@
 from __future__ import annotations
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpResponse, HttpRequest
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.http import HttpResponse, HttpRequest, JsonResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib import messages
 
-from .models import Profile, UsuarioEditorial
-from catalogo.models import LibroFicha
+from .models import Profile, UsuarioEditorial, Editorial
+from catalogo.models import LibroFicha, TipoTapa, Idioma, Pais, Moneda
 
-import csv
+from templates.reports.search_result import exportar_excel
+from django.db.models import ForeignKey
 from datetime import datetime, date, datetime as dt
 from django.urls import reverse
 from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm
@@ -18,10 +19,27 @@ from django import forms
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from urllib.parse import urlencode
+from .forms import EditarUsuarioForm
 
 #PARA EDITAR
 from .forms_edit import LibroEditForm
+#PARA MANTENEDOR DE USUARIOS
+from django.contrib.auth import get_user_model
+from django.views.generic import ListView
+from django.db.models import Q, Prefetch
 
+import os
+from django.http import FileResponse
+from django.conf import settings
+
+
+import json
+import logging
+import secrets
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 # ----------------------------
 # Helpers de rol
@@ -212,22 +230,27 @@ class BasePanelView(LoginRequiredMixin, View):
 
 
     def export_csv(self, request: HttpRequest) -> HttpResponse:
-        qs = build_queryset_for_user(request.user, request.GET)
+        params = request.GET.copy()
+        params.pop('page', None)
+        params.pop('limit', None)
 
-        response = HttpResponse(content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = 'attachment; filename="libros.csv"'
-        writer = csv.writer(response)
-        writer.writerow(["ISBN", "TÍTULO", "AUTOR", "EDITORIAL", "FECHA_EDICIÓN"])
+        qs = build_queryset_for_user(request.user, params)
+        rows = []
+        for obj in qs:
+            rec = {}
+            for field in obj._meta.fields:
+                name = field.name
+                val = getattr(obj, name)
+                if isinstance(field, ForeignKey):
+                    if val is None:
+                        rec[name] = None
+                    else:
+                        rec[name] = getattr(val, 'nombre', None) or getattr(val, 'code', None) or str(val)
+                else:
+                    rec[name] = val
+            rows.append(rec)
 
-        for r in qs:
-            writer.writerow([
-                r.isbn,
-                r.titulo,
-                r.autor,
-                r.editorial.nombre,
-                r.fecha_edicion.isoformat() if r.fecha_edicion else "",
-            ])
-        return response
+        return exportar_excel(rows)
 
 
 class PanelView(BasePanelView):
@@ -472,6 +495,27 @@ class LibroEditView(LoginRequiredMixin, View):
             return redirect(nxt or reverse("roles:panel"))
         # si hay errores, vuelve a pintar el mismo template con los errores
         return render(request, self.template_name, {"form": form, "ficha": obj})
+    
+
+# -----------------------------------------------------------
+# CLASE PARA ELIMINAR FICHA LIBRO
+# -----------------------------------------------------------
+
+class LibroDeleteView(LoginRequiredMixin, View):
+    def post(self, request, isbn):
+        # Validar permisos: solo EDITOR puede borrar
+        role = getattr(getattr(request.user, "profile", None), "role", None)
+        if role != Profile.ROLE_EDITOR:
+            return redirect("roles:panel")
+
+        obj = get_object_or_404(LibroFicha, isbn=isbn)
+        titulo = obj.titulo
+        obj.delete()
+
+        messages.success(request, f"Eliminación exitosa: {titulo}")
+        return redirect("roles:panel")
+
+# -----------------------------------------------------------    
 
 # -----------------------------------------------------------
 # SOLO PROVISIONAL para BOTON CARGA MASIVA
@@ -481,3 +525,571 @@ class LibroEditView(LoginRequiredMixin, View):
 def ficha_upload(request):
     # Por ahora no procesamos nada: si llegó archivo, perfecto; si no, igual volvemos.
     return redirect(f"{reverse('roles:ficha_new')}?step={request.POST.get('step','ident')}")
+
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - LISTAR USUARIOS
+# Paginación : 10 x página
+# -----------------------------------------------------------
+User = get_user_model()
+
+class UsuariosListarView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    template_name = "roles/usuarios.html"
+    context_object_name = "usuarios"
+    paginate_by = 10
+
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def get_queryset(self):
+        q_usuario   = (self.request.GET.get("q_usuario") or "").strip()
+        q_editorial = (self.request.GET.get("q_editorial") or "").strip()
+
+        prefetch = Prefetch(
+            "usuarioeditorial_set",
+            queryset=UsuarioEditorial.objects.select_related("editorial").order_by("editorial__nombre"),
+        )
+
+        qs = (User.objects
+                .select_related("profile")
+                .prefetch_related(prefetch)
+                .order_by("first_name", "last_name"))
+
+        if q_usuario:
+            qs = qs.filter(
+                Q(first_name__icontains=q_usuario) |
+                Q(last_name__icontains=q_usuario)  |
+                Q(email__icontains=q_usuario)
+            )
+
+        if q_editorial:
+            qs = qs.filter(usuarioeditorial__editorial__nombre__icontains=q_editorial).distinct()
+
+        # último admin (si hay uno solo)
+        admins = list(Profile.objects.filter(role=Profile.ROLE_ADMIN).values_list("user_id", flat=True))
+        ultimo_admin_id = admins[0] if len(admins) == 1 else None
+
+        self.extra_context = {
+            "q_usuario": q_usuario,
+            "q_editorial": q_editorial,
+            "editoriales_catalogo": Editorial.objects.all().order_by("nombre"),
+            "ultimo_admin_id": ultimo_admin_id,
+        }
+        return qs
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - EDITAR USUARIOS
+# -----------------------------------------------------------
+
+class EditarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+   
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, user_id):
+        usuario = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+
+        # Datos desde form-encoded o JSON
+        data = request.POST
+        if request.content_type == "application/json":
+            import json
+            data = json.loads(request.body.decode("utf-8"))
+
+        form = EditarUsuarioForm({
+            "username": usuario.username,
+            "email": usuario.email,
+            "nombre": data.get("nombre", "").strip(),
+            "apellido": data.get("apellido", "").strip(),
+            "rol": data.get("rol"),
+        })
+        # preparar M2M
+        editoriales_ids = data.get("editoriales", [])
+        if isinstance(editoriales_ids, str):
+            editoriales_ids = [e for e in editoriales_ids.split(",") if e]
+
+        form.fields["editoriales"].queryset = Editorial.objects.all()
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+        nuevo_rol = form.cleaned_data["rol"]
+
+        # no permitir quitar ADMIN al único admin
+        admins = Profile.objects.filter(role=Profile.ROLE_ADMIN).values_list("user_id", flat=True)
+        if usuario.profile.role == Profile.ROLE_ADMIN and len(admins) == 1 and nuevo_rol != Profile.ROLE_ADMIN:
+            return JsonResponse({"ok": False, "errors": {"rol": ["No puede quitar el rol ADMIN al único Administrador."]}}, status=400)
+
+        # Guardar nombre/apellido
+        usuario.first_name = form.cleaned_data["nombre"]
+        usuario.last_name  = form.cleaned_data["apellido"]
+        usuario.save(update_fields=["first_name", "last_name"])
+
+        # Guardar rol
+        perfil = usuario.profile
+        perfil.role = nuevo_rol
+        perfil.save(update_fields=["role"])
+
+        # Sincronizacion de editoriales
+        if nuevo_rol == Profile.ROLE_EDITOR:
+            nuevos = set(int(i) for i in editoriales_ids) if editoriales_ids else set()
+            actuales = set(UsuarioEditorial.objects.filter(user=usuario).values_list("editorial_id", flat=True))
+            quitar = actuales - nuevos
+            agregar = nuevos - actuales
+            if quitar:
+                UsuarioEditorial.objects.filter(user=usuario, editorial_id__in=quitar).delete()
+            if agregar:
+                UsuarioEditorial.objects.bulk_create(
+                    [UsuarioEditorial(user=usuario, editorial_id=eid) for eid in agregar],
+                    ignore_conflicts=True
+                )
+        else:
+            # no-Editor no tiene asignaciones
+            UsuarioEditorial.objects.filter(user=usuario).delete()
+
+        return JsonResponse({"ok": True})
+    
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - DESHABILITAR/HABILITAR
+# UN ÚNICO USUARIO ADMIN NO SE PUEDE DESACTIVAR A SI MISMO
+# -----------------------------------------------------------
+
+class ToggleUsuarioActivoView(LoginRequiredMixin, UserPassesTestMixin, View):
+
+    def test_func(self):
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, user_id):
+        usuario = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+
+        # Cargar JSON body
+        data = request.POST
+        if request.content_type == "application/json":
+            import json
+            data = json.loads(request.body.decode("utf-8"))
+
+        activar = bool(data.get("activar"))
+
+        # Si intentan DESACTIVAR al único admin envía error
+        if not activar and getattr(usuario, "profile", None) and usuario.profile.role == Profile.ROLE_ADMIN:
+            admins = Profile.objects.filter(role=Profile.ROLE_ADMIN, user__is_active=True)\
+                                    .values_list("user_id", flat=True)
+            if len(admins) == 1 and usuario.id in admins:
+                return JsonResponse({
+                    "ok": False,
+                    "error": "No es posible deshabilitar. Solo hay un usuario ADMIN"
+                }, status=400)
+
+        usuario.is_active = activar
+        usuario.save(update_fields=["is_active"])
+
+        return JsonResponse({"ok": True, "is_active": usuario.is_active})
+
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - INVITAR USUARIOS
+# -----------------------------------------------------------
+
+# GENERAR MENSAJE 
+
+log = logging.getLogger(__name__)
+
+def _username_from_email(email: str) -> str:
+    User = get_user_model()
+    base = (email.split("@")[0] or "usuario").lower().replace(" ", "")
+    candidate = base
+    i = 1
+    while User.objects.filter(username=candidate).exists():
+        candidate = f"{base}-{i}"
+        i += 1
+    return candidate
+
+
+def _enviar_correo_invitacion(email: str, nombre: str, password_temp: str) -> None:
+    asunto = "Invitación al Sistema de Gestión de Novedades Liberalia"
+    cuerpo = (
+        f"Hola {nombre or ''},\n\n"
+        "Has sido invitado(a) a la Plataforma de Gestión de Novedades de Liberalia Ediciones.\n"
+        "CREDENCIALES DE INGRESO \n"
+        f"Correo: {email}\n"
+        f"Contraseña Inicial: {password_temp}\n\n"       
+
+        #=============================================================================================
+        #COLOCAR URL CORRECTA EN DESPLIEGUE ACÁ : 'https://liberalia.cl/novedades/accounts/login/)
+                #=============================================================================================
+        f"Ingreso: {getattr(settings, 'SITE_LOGIN_URL', 'http://127.0.0.1:8000/accounts/login/')}\n\n"
+        "IMPORTANTE: Si bien tu contraseña inicial no caduca te recomendamos cambiarla al iniciar sesión en el menú respectivo.\n\n"
+        "Saludos,\nEquipo Liberalia"
+    )
+    remitente = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@liberalia.cl")
+    
+    try:
+        send_mail(asunto, cuerpo, remitente, [email], fail_silently=False)
+    except Exception as e:
+        log.exception("Fallo al enviar correo de invitación: %s", e)
+
+
+class InvitarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+    # Requiere que el usuario esté autenticado y además valido su rol
+    raise_exception = True
+
+    def handle_no_permission(self):
+        # Si no tiene permisos, respondo con error 403 en JSON
+        return JsonResponse({"ok": False, "error": "No autorizado."}, status=403)
+
+    def test_func(self):
+        # Verifico que el usuario que hace la petición sea ADMIN
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request):
+        try:
+            # Intento parsear el body como JSON
+            try:
+                # Si el JSON está mal formado, devuelvo error
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                return JsonResponse({"ok": False, "errors": {"body": "JSON inválido"}}, status=400)
+
+            # Obtengo y limpio los datos enviados
+            nombre    = (data.get("nombre") or "").strip()
+            apellido  = (data.get("apellido") or "").strip()
+            correo    = (data.get("correo") or "").strip().lower()
+            rol       = (data.get("rol") or "").strip().upper()
+            ed_ids    = data.get("editoriales") or []
+            _id_fiscal = (data.get("id_fiscal") or "").strip()
+
+            # Valido los datos obligatorios
+            errors = {}
+            if not nombre:
+                errors["nombre"] = "Nombre es obligatorio."
+            if not apellido:
+                errors["apellido"] = "Apellido es obligatorio."
+            if not correo:
+                errors["correo"] = "Correo es obligatorio."
+            if rol not in {Profile.ROLE_CONSULTOR, Profile.ROLE_EDITOR, Profile.ROLE_ADMIN}:
+                errors["rol"] = "Rol inválido."
+            if rol == Profile.ROLE_EDITOR and not ed_ids:
+                errors["editoriales"] = "Selecciona al menos una editorial"
+
+            # Reviso si ya existe un usuario con el mismo correo
+            User = get_user_model()
+            if User.objects.filter(email=correo).exists():
+                errors["ERROR"] = "Ya existe un usuario con este correo."
+
+            # Si hubo errores, los devuelvo
+            if errors:
+                return JsonResponse({"ok": False, "errors": errors}, status=400)
+
+            # Genero una contraseña inicial para el nuevo usuario
+            password_temp = secrets.token_urlsafe(8)
+
+            # Uso una transacción para asegurar consistencia
+            with transaction.atomic():
+                username = _username_from_email(correo)
+                user = User.objects.create_user(
+                    username=username,
+                    email=correo,
+                    first_name=nombre,
+                    last_name=apellido,
+                    password=password_temp,
+                    is_active=True,
+                )
+
+                # Creo o actualizo el perfil con el rol asignado
+                profile, creado = Profile.objects.get_or_create(user=user, defaults={"role": rol})
+                if not creado:
+                    # Si el perfil ya existía, se actualiza su rol
+                    profile.role = rol
+                    profile.save(update_fields=["role"])
+
+                # Si es EDITOR, lo asocio con las editoriales seleccionadas
+                if rol == Profile.ROLE_EDITOR and ed_ids:
+                    editoriales = Editorial.objects.filter(id__in=ed_ids)
+                    UsuarioEditorial.objects.bulk_create(
+                        [UsuarioEditorial(user=user, editorial=ed) for ed in editoriales],
+                        ignore_conflicts=True
+                    )
+
+            # Envío el correo de invitación con la contraseña temporal
+            _enviar_correo_invitacion(email=correo, nombre=nombre, password_temp=password_temp)
+            return JsonResponse({"ok": True})
+
+        # Si ocurre cualquier error inesperado, lo registro en logs
+        except Exception as e:
+            log.exception("Error en InvitarUsuarioView: %s", e)
+            
+            # En modo DEBUG muestro detalles, en producción devuelvo error genérico
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({"ok": False, "error": f"Error interno: {e.__class__.__name__}: {e}"}, status=500)
+            return JsonResponse({"ok": False, "error": "Error interno del servidor."}, status=500)
+
+## Descarga de plantilla Excel para carga masiva de fichas
+@login_required
+def descargar_plantilla_excel(request):
+       # 1. Definir la ruta completa al archivo
+    # Usamos settings.BASE_DIR para garantizar que la ruta sea absoluta y correcta
+    # 'static/file/carga_masiva.xlsx' es la ruta relativa desde la raíz del proyecto.
+    ruta_archivo = os.path.join(
+        settings.BASE_DIR, 
+        'static', 
+        'file', 
+        'carga_masiva.xlsx'
+    )
+
+    # Verifica si el archivo existe (opcional, pero buena práctica)
+    if not os.path.exists(ruta_archivo):
+        # Manejar el error si el archivo no se encuentra
+        return HttpResponse("El archivo no se encontró.", status=404)
+
+    # 2. Servir el archivo usando FileResponse
+    try:
+        # Abre el archivo en modo binario de lectura ('rb')
+        response = FileResponse(open(ruta_archivo, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        
+        # 3. Configurar el encabezado de descarga
+        # 'attachment' fuerza al navegador a descargar el archivo en lugar de mostrarlo
+        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
+        
+        return response
+    except Exception as e:
+        # Manejo de errores de lectura
+        return HttpResponse(f"Error al servir el archivo: {e}", status=500)
+
+
+@login_required
+def upload_fichas_json(request):
+    print(">>> upload_fichas_json called")
+    """
+    Endpoint que acepta POST JSON { rows: [ {..fila..}, ... ] }
+    Valida mínimamente y crea LibroFicha por fila. Devuelve JSON con resumen.
+    Reglas simplificadas:
+    - Debe ser usuario con role EDITOR
+    - Resuelve FKs buscando por 'nombre' (editorial, tipo_tapa) o por code (idioma, pais, moneda)
+    - Retorna detalles de filas fallidas
+    """
+    if request.method != 'POST':
+        return JsonResponse({'ok': False, 'error': 'POST required'}, status=405)
+
+    # rol
+    role = getattr(getattr(request.user, 'profile', None), 'role', None)
+    if role != Profile.ROLE_EDITOR:
+        return JsonResponse({'ok': False, 'error': 'No autorizado'}, status=403)
+
+    import json
+    from decimal import Decimal
+    from datetime import datetime, timedelta, date
+
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'JSON inválido'}, status=400)
+
+    rows = payload.get('rows') or []
+    created = 0
+    failed = []
+    logger = logging.getLogger(__name__)
+
+    # Helpers
+    def excel_date_to_date(n):
+        # Excel serial (1900-based) -> date; handle ints/floats
+        try:
+            base = datetime(1899, 12, 30)
+            return (base + timedelta(days=float(n))).date()
+        except Exception:
+            return None
+
+    def resolve_editorial(val):
+        if val is None:
+            return None
+        v = str(val).strip()
+        if v.isdigit():
+            try:
+                return Editorial.objects.get(pk=int(v))
+            except Editorial.DoesNotExist:
+                return None
+        return Editorial.objects.filter(nombre__iexact=v).first()
+
+    def resolve_tipo_tapa(val):
+        if val is None: return None
+        v = str(val).strip()
+        return TipoTapa.objects.filter(nombre__iexact=v).first()
+
+    def resolve_idioma(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Idioma.objects.filter(code__iexact=v).first() or Idioma.objects.filter(nombre__iexact=v).first()
+
+    def resolve_pais(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Pais.objects.filter(code__iexact=v).first() or Pais.objects.filter(nombre__iexact=v).first()
+
+    def resolve_moneda(val):
+        if val is None: return None
+        v = str(val).strip()
+        return Moneda.objects.filter(code__iexact=v).first() or Moneda.objects.filter(nombre__iexact=v).first()
+
+    # --- 1) VALIDAR TODO SIN INSERTAR ---
+    validated = []
+    input_isbns = []
+    for idx, row in enumerate(rows, start=1):
+        isbn = str(row.get('isbn') or '').strip()
+        input_isbns.append(isbn)
+
+    # chequear duplicados dentro del archivo
+    from collections import Counter
+    counts = Counter(input_isbns)
+    duplicates_in_file = {k for k, v in counts.items() if k and v > 1}
+
+    # chequear existentes en DB
+    existing_isbns = set(LibroFicha.objects.filter(isbn__in=[i for i in input_isbns if i]).values_list('isbn', flat=True))
+
+    for idx, row in enumerate(rows, start=1):
+        try:
+            # simple checks
+            isbn = str(row.get('isbn') or '').strip()
+            titulo = str(row.get('titulo') or '').strip()
+            if not isbn or not titulo:
+                raise ValueError('isbn/titulo obligatorios')
+            if isbn in duplicates_in_file:
+                raise ValueError('ISBN duplicado dentro del archivo')
+            if isbn in existing_isbns:
+                raise ValueError('ISBN ya existe en la base de datos')
+
+            editorial = resolve_editorial(row.get('editorial'))
+            if not editorial:
+                raise ValueError('Editorial no encontrada')
+
+            tipo_tapa = resolve_tipo_tapa(row.get('tipo_tapa'))
+            if not tipo_tapa:
+                raise ValueError('Tipo tapa no encontrado')
+
+            # ints
+            try:
+                numero_paginas = int(row.get('numero_paginas'))
+            except Exception:
+                raise ValueError('numero_paginas inválido')
+
+            idioma = resolve_idioma(row.get('idioma_original'))
+            if not idioma:
+                raise ValueError('Idioma original no encontrado')
+
+            try:
+                numero_edicion = int(row.get('numero_edicion'))
+            except Exception:
+                raise ValueError('numero_edicion inválido')
+
+            # fecha
+            fecha_val = row.get('fecha_edicion')
+            fecha = None
+            if isinstance(fecha_val, (int, float)):
+                fecha = excel_date_to_date(fecha_val)
+            elif isinstance(fecha_val, str):
+                try:
+                    fecha = datetime.fromisoformat(fecha_val).date()
+                except Exception:
+                    # try common formats
+                    try:
+                        fecha = datetime.strptime(fecha_val, '%Y-%m-%d').date()
+                    except Exception:
+                        fecha = None
+            elif hasattr(fecha_val, 'year'):
+                fecha = date(fecha_val.year, fecha_val.month, fecha_val.day)
+
+            if not fecha:
+                raise ValueError('fecha_edicion inválida')
+
+            pais = resolve_pais(row.get('pais_edicion'))
+            if not pais:
+                raise ValueError('Pais edición no encontrado')
+
+            # comerciales
+            try:
+                precio = Decimal(str(row.get('precio')))
+            except Exception:
+                raise ValueError('precio inválido')
+
+            moneda = resolve_moneda(row.get('moneda'))
+            if not moneda:
+                raise ValueError('Moneda no encontrada')
+
+            try:
+                descuento = Decimal(str(row.get('descuento_distribuidor') or '0'))
+            except Exception:
+                raise ValueError('descuento_distribuidor inválido')
+
+            # preparar datos limpios para crear
+            clean = {
+                'isbn': isbn,
+                'titulo': titulo,
+                'ean': row.get('ean') or None,
+                'editorial': editorial,
+                'autor': row.get('autor') or '',
+                'autor_prologo': row.get('autor_prologo') or None,
+                'traductor': row.get('traductor') or None,
+                'ilustrador': row.get('ilustrador') or None,
+                'tipo_tapa': tipo_tapa,
+                'numero_paginas': numero_paginas,
+                'alto_cm': row.get('alto_cm') or None,
+                'ancho_cm': row.get('ancho_cm') or None,
+                'grosor_cm': row.get('grosor_cm') or None,
+                'peso_gr': row.get('peso_gr') or None,
+                'idioma_original': idioma,
+                'numero_edicion': numero_edicion,
+                'fecha_edicion': fecha,
+                'pais_edicion': pais,
+                'numero_impresion': row.get('numero_impresion') or None,
+                'tematica': row.get('tematica') or None,
+                'precio': precio,
+                'moneda': moneda,
+                'descuento_distribuidor': descuento,
+                'resumen_libro': row.get('resumen_libro') or '',
+                'codigo_imagen': row.get('codigo_imagen') or None,
+                'rango_etario': row.get('rango_etario') or None,
+                'subtitulo': row.get('subtitulo') or None,
+            }
+
+            validated.append((idx, clean, row))
+
+        except Exception as e:
+            # Map some internal messages to user-friendly messages
+            raw_msg = str(e)
+            if 'ISBN ya existe' in raw_msg:
+                client_msg = 'Ese ISBN ya existe'
+            else:
+                client_msg = raw_msg
+
+            # Log full details server-side (stack/row) but don't expose row_data to the client
+            try:
+                logger.error("Carga masiva - fila %s: %s ; datos: %s", idx, raw_msg, row)
+            except Exception:
+                # fallback to simple print if logging misconfigured
+                print(f"Carga masiva - fila {idx}: {raw_msg} ; datos: {row}")
+
+            failed.append({'row': idx, 'error': client_msg})
+
+    # Si hubo fallos en validación, retornamos sin insertar nada
+    if failed:
+        return JsonResponse({'ok': False, 'created': 0, 'failed': len(failed), 'errors': failed}, status=400)
+
+    # --- 2) CREAR todos los registros en bloque dentro de una transacción ---
+    from django.db import transaction
+    instances = []
+    for idx, clean, orig_row in validated:
+        instances.append(LibroFicha(**clean))
+
+    try:
+        with transaction.atomic():
+            LibroFicha.objects.bulk_create(instances)
+        created = len(instances)
+    except Exception as e:
+        # error inesperado al insertar: loggear detalles y retornar mensaje genérico al cliente
+        try:
+            logger.exception("Error al insertar cargas masivas: %s", e)
+        except Exception:
+            print("Error al insertar cargas masivas:", e)
+        return JsonResponse({'ok': False, 'created': 0, 'failed': len(instances), 'errors': [{'row': None, 'error': 'Error interno al crear registros. Contacte al administrador.'}]}, status=500)
+
+    return JsonResponse({'ok': True, 'created': created, 'failed': len(failed), 'errors': failed})

@@ -10,16 +10,33 @@ from .views import (
     PanelView,                 # panel unificado
     LibroCreateWizardView,     # wizard de creación de fichas en tres pasos
     LibroEditView,             # editar (para los templates de edición)
-    ficha_upload # solo para probar carga archivo (validar posteriormente)
+    UsuariosListarView,     # lista de usuarios (Mantenedor de Usuarios)
+    EditarUsuarioView, #para editar usuarios
+    InvitarUsuarioView, #invitar usuarios
+    ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
+    LibroDeleteView,
+    ficha_upload,
+    upload_fichas_json,
+    descargar_plantilla_excel
 )
 
 app_name = "roles"
 
 urlpatterns = [
-    path("panel/", PanelView.as_view(), name="panel"),
+    path("", PanelView.as_view(), name="panel"),
 
     # Wizard de creación (EDITOR)
     path("editor/fichas/nueva/",      LibroCreateWizardView.as_view(), name="ficha_new"),
-    path("editor/fichas/<str:isbn>/", LibroEditView.as_view(),         name="ficha_edit"),
     path("editor/fichas/cargar/", ficha_upload, name="ficha_upload"),
+    path("editor/fichas/upload-json/", upload_fichas_json, name="ficha_upload_json"),
+    path('descargar/descargar_plantilla_excel/', descargar_plantilla_excel, name='descargar_plantilla_excel'),
+    path("editor/fichas/<str:isbn>/", LibroEditView.as_view(),         name="ficha_edit"),
+    path("editor/fichas/<str:isbn>/eliminar/", LibroDeleteView.as_view(), name="ficha_eliminar"),
+
+    # Mantenedor de usuarios
+    path("admin/usuarios/", UsuariosListarView.as_view(), name="usuarios_mantenedor"),
+    path("admin/usuarios/<int:user_id>/editar/", EditarUsuarioView.as_view(), name="usuarios_editar"),
+    path("admin/usuarios/<int:user_id>/toggle-activo/", ToggleUsuarioActivoView.as_view(), name="usuarios_toggle_activo"),
+    path("admin/usuarios/invitar/", InvitarUsuarioView.as_view(), name="usuarios_invitar"),
 ]
+
