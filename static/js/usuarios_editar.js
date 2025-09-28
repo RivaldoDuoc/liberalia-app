@@ -136,11 +136,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const url = pattern.replace('/0/', `/${userId}/`);
 
             try {
-                const resp = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ nombre, apellido, rol: rolActual, editoriales })
-                });
+            const resp = await fetch(url, {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nombre, apellido, correo, rol, editoriales, id_fiscal: idFiscal })
+            });
                 const data = await resp.json();
                 if (!resp.ok || !data.ok) {
                     const msg = data.errors

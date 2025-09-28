@@ -183,31 +183,52 @@
             </div>
 
             <!-- Precio y Distribución -->
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="encabezadoCinco">
-                <button class="accordion-button collapsed" type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#panelCinco"
-                        aria-expanded="false" aria-controls="panelCinco">
-                  Precio y Distribución
-                </button>
-              </h2>
-              <div id="panelCinco" class="accordion-collapse collapse"
-                   aria-labelledby="encabezadoCinco" data-bs-parent="#acordeonLibro">
-                <div class="accordion-body">
-                  <dl class="row mb-0">
-                    <dt class="col-sm-4 text-muted">Precio</dt>
-                    <dd class="col-sm-8">{{ obj.precio|default:"—" }}</dd>
+<div class="accordion-item">
+  <h2 class="accordion-header" id="encabezadoCinco">
+    <button class="accordion-button collapsed" type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#panelCinco"
+            aria-expanded="false" aria-controls="panelCinco">
+      Precio y Distribución
+    </button>
+  </h2>
+  <div id="panelCinco" class="accordion-collapse collapse"
+       aria-labelledby="encabezadoCinco" data-bs-parent="#acordeonLibro">
+    <div class="accordion-body">
+      <dl class="row mb-0">
 
-                    <dt class="col-sm-4 text-muted">Moneda</dt>
-                    <dd class="col-sm-8">{{ obj.moneda|default:"—" }}</dd>
+        <dt class="col-sm-4 text-muted">Precio</dt>
+        <dd class="col-sm-8">{{ obj.precio|default:"—" }}</dd>
 
-                    <dt class="col-sm-4 text-muted">Desc. distribuidor</dt>
-                    <dd class="col-sm-8">{{ obj.descuento_distribuidor|default:"—" }}</dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
+        <dt class="col-sm-4 text-muted">Moneda</dt>
+        <dd class="col-sm-8">{{ obj.moneda|default:"—" }}</dd>
+
+        <dt class="col-sm-4 text-muted">Desc. distribuidor</dt>
+        <dd class="col-sm-8">{{ obj.descuento_distribuidor|default:"—" }} %</dd>
+
+
+        <!-- Nuevos campos de la editorial. NO MOSTRAR COMO SE CALCULA EL PRECIO. DEJARLO SOLO PARA EL ADMIN-->
+        <dt class="col-sm-4 text-muted">Cargo origen</dt>
+        <dd class="col-sm-8">{{ obj.editorial.cargo_origen|default:"0" }} %</dd>
+
+        <dt class="col-sm-4 text-muted">Recargo fletes y gastos</dt>
+        <dd class="col-sm-8">{{ obj.editorial.recargo_fletes|default:"0" }} %</dd>
+
+        <dt class="col-sm-4 text-muted">Gastos indirectos</dt>
+        <dd class="col-sm-8">{{ obj.editorial.gastos_indirectos|default:"0" }} %</dd>
+
+        <dt class="col-sm-4 text-muted">Margen de comercialización</dt>
+        <dd class="col-sm-8">{{ obj.editorial.margen_comercializacion|default:"0" }} %</dd>
+
+        <!-- Precio sugerido -->
+        <dt class="col-sm-4 text-muted">Precio sugerido</dt>
+        <dd class="col-sm-8">{{ obj.precio_final_sugerido|floatformat:2 }}</dd>
+
+      </dl>
+    </div>
+  </div>
+</div>
+
 
             <!-- Resumen -->
             <div class="accordion-item">

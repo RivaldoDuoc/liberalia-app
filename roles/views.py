@@ -33,6 +33,14 @@ from django.http import FileResponse
 from django.conf import settings
 
 
+import json
+import logging
+import secrets
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+
 # ----------------------------
 # Helpers de rol
 # ----------------------------
@@ -487,6 +495,27 @@ class LibroEditView(LoginRequiredMixin, View):
             return redirect(nxt or reverse("roles:panel"))
         # si hay errores, vuelve a pintar el mismo template con los errores
         return render(request, self.template_name, {"form": form, "ficha": obj})
+    
+
+# -----------------------------------------------------------
+# CLASE PARA ELIMINAR FICHA LIBRO
+# -----------------------------------------------------------
+
+class LibroDeleteView(LoginRequiredMixin, View):
+    def post(self, request, isbn):
+        # Validar permisos: solo EDITOR puede borrar
+        role = getattr(getattr(request.user, "profile", None), "role", None)
+        if role != Profile.ROLE_EDITOR:
+            return redirect("roles:panel")
+
+        obj = get_object_or_404(LibroFicha, isbn=isbn)
+        titulo = obj.titulo
+        obj.delete()
+
+        messages.success(request, f"Eliminación exitosa: {titulo}")
+        return redirect("roles:panel")
+
+# -----------------------------------------------------------    
 
 # -----------------------------------------------------------
 # SOLO PROVISIONAL para BOTON CARGA MASIVA
@@ -656,35 +685,142 @@ class ToggleUsuarioActivoView(LoginRequiredMixin, UserPassesTestMixin, View):
         usuario.save(update_fields=["is_active"])
 
         return JsonResponse({"ok": True, "is_active": usuario.is_active})
-    
-## Descarga de plantilla Excel para carga masiva de fichas
-@login_required
-def descargar_plantilla_excel(request):
-       # 1. Definir la ruta completa al archivo
-    # Usamos settings.BASE_DIR para garantizar que la ruta sea absoluta y correcta
-    # 'static/file/carga_masiva.xlsx' es la ruta relativa desde la raíz del proyecto.
-    ruta_archivo = os.path.join(
-        settings.BASE_DIR, 
-        'static', 
-        'file', 
-        'carga_masiva.xlsx'
+
+
+# -----------------------------------------------------------
+# MANTENEDOR USUARIOS - INVITAR USUARIOS
+# -----------------------------------------------------------
+
+# GENERAR MENSAJE 
+
+log = logging.getLogger(__name__)
+
+def _username_from_email(email: str) -> str:
+    User = get_user_model()
+    base = (email.split("@")[0] or "usuario").lower().replace(" ", "")
+    candidate = base
+    i = 1
+    while User.objects.filter(username=candidate).exists():
+        candidate = f"{base}-{i}"
+        i += 1
+    return candidate
+
+
+def _enviar_correo_invitacion(email: str, nombre: str, password_temp: str) -> None:
+    asunto = "Invitación al Sistema de Gestión de Novedades Liberalia"
+    cuerpo = (
+        f"Hola {nombre or ''},\n\n"
+        "Has sido invitado(a) a la Plataforma de Gestión de Novedades de Liberalia Ediciones.\n"
+        "CREDENCIALES DE INGRESO \n"
+        f"Correo: {email}\n"
+        f"Contraseña Inicial: {password_temp}\n\n"       
+
+        #=============================================================================================
+        #COLOCAR URL CORRECTA EN DESPLIEGUE ACÁ : 'https://liberalia.cl/novedades/accounts/login/)
+                #=============================================================================================
+        f"Ingreso: {getattr(settings, 'SITE_LOGIN_URL', 'http://127.0.0.1:8000/accounts/login/')}\n\n"
+        "IMPORTANTE: Si bien tu contraseña inicial no caduca te recomendamos cambiarla al iniciar sesión en el menú respectivo.\n\n"
+        "Saludos,\nEquipo Liberalia"
     )
-
-    # Verifica si el archivo existe (opcional, pero buena práctica)
-    if not os.path.exists(ruta_archivo):
-        # Manejar el error si el archivo no se encuentra
-        return HttpResponse("El archivo no se encontró.", status=404)
-
-    # 2. Servir el archivo usando FileResponse
+    remitente = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@liberalia.cl")
+    
     try:
-        # Abre el archivo en modo binario de lectura ('rb')
-        response = FileResponse(open(ruta_archivo, 'rb'), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        
-        # 3. Configurar el encabezado de descarga
-        # 'attachment' fuerza al navegador a descargar el archivo en lugar de mostrarlo
-        response['Content-Disposition'] = 'attachment; filename="plantilla_carga_masiva.xlsx"'
-        
-        return response
+        send_mail(asunto, cuerpo, remitente, [email], fail_silently=False)
     except Exception as e:
-        # Manejo de errores de lectura
-        return HttpResponse(f"Error al servir el archivo: {e}", status=500)
+        log.exception("Fallo al enviar correo de invitación: %s", e)
+
+
+class InvitarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
+    # Requiere que el usuario esté autenticado y además valido su rol
+    raise_exception = True
+
+    def handle_no_permission(self):
+        # Si no tiene permisos, respondo con error 403 en JSON
+        return JsonResponse({"ok": False, "error": "No autorizado."}, status=403)
+
+    def test_func(self):
+        # Verifico que el usuario que hace la petición sea ADMIN
+        p = getattr(self.request.user, "profile", None)
+        return getattr(p, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request):
+        try:
+            # Intento parsear el body como JSON
+            try:
+                # Si el JSON está mal formado, devuelvo error
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                return JsonResponse({"ok": False, "errors": {"body": "JSON inválido"}}, status=400)
+
+            # Obtengo y limpio los datos enviados
+            nombre    = (data.get("nombre") or "").strip()
+            apellido  = (data.get("apellido") or "").strip()
+            correo    = (data.get("correo") or "").strip().lower()
+            rol       = (data.get("rol") or "").strip().upper()
+            ed_ids    = data.get("editoriales") or []
+            _id_fiscal = (data.get("id_fiscal") or "").strip()
+
+            # Valido los datos obligatorios
+            errors = {}
+            if not nombre:
+                errors["nombre"] = "Nombre es obligatorio."
+            if not apellido:
+                errors["apellido"] = "Apellido es obligatorio."
+            if not correo:
+                errors["correo"] = "Correo es obligatorio."
+            if rol not in {Profile.ROLE_CONSULTOR, Profile.ROLE_EDITOR, Profile.ROLE_ADMIN}:
+                errors["rol"] = "Rol inválido."
+            if rol == Profile.ROLE_EDITOR and not ed_ids:
+                errors["editoriales"] = "Selecciona al menos una editorial"
+
+            # Reviso si ya existe un usuario con el mismo correo
+            User = get_user_model()
+            if User.objects.filter(email=correo).exists():
+                errors["ERROR"] = "Ya existe un usuario con este correo."
+
+            # Si hubo errores, los devuelvo
+            if errors:
+                return JsonResponse({"ok": False, "errors": errors}, status=400)
+
+            # Genero una contraseña inicial para el nuevo usuario
+            password_temp = secrets.token_urlsafe(8)
+
+            # Uso una transacción para asegurar consistencia
+            with transaction.atomic():
+                username = _username_from_email(correo)
+                user = User.objects.create_user(
+                    username=username,
+                    email=correo,
+                    first_name=nombre,
+                    last_name=apellido,
+                    password=password_temp,
+                    is_active=True,
+                )
+
+                # Creo o actualizo el perfil con el rol asignado
+                profile, creado = Profile.objects.get_or_create(user=user, defaults={"role": rol})
+                if not creado:
+                    # Si el perfil ya existía, se actualiza su rol
+                    profile.role = rol
+                    profile.save(update_fields=["role"])
+
+                # Si es EDITOR, lo asocio con las editoriales seleccionadas
+                if rol == Profile.ROLE_EDITOR and ed_ids:
+                    editoriales = Editorial.objects.filter(id__in=ed_ids)
+                    UsuarioEditorial.objects.bulk_create(
+                        [UsuarioEditorial(user=user, editorial=ed) for ed in editoriales],
+                        ignore_conflicts=True
+                    )
+
+            # Envío el correo de invitación con la contraseña temporal
+            _enviar_correo_invitacion(email=correo, nombre=nombre, password_temp=password_temp)
+            return JsonResponse({"ok": True})
+
+        # Si ocurre cualquier error inesperado, lo registro en logs
+        except Exception as e:
+            log.exception("Error en InvitarUsuarioView: %s", e)
+            
+            # En modo DEBUG muestro detalles, en producción devuelvo error genérico
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({"ok": False, "error": f"Error interno: {e.__class__.__name__}: {e}"}, status=500)
+            return JsonResponse({"ok": False, "error": "Error interno del servidor."}, status=500)

@@ -325,3 +325,10 @@ a:hover {
   background-color: #a03c3c;
   color: white;
 }
+
+
+/* Estilo Inputs del modal INVITAR */
+#modalInvitarUsuario .form-control,
+#modalInvitarUsuario .form-select {
+  background-color: #f9f9fb;
+}
