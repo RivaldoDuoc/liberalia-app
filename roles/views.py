@@ -130,7 +130,10 @@ def build_queryset_for_user(user, params):
     - Límite por rol (editor ve solo sus editoriales)
     - Ordenamiento (?sort=)
     """
-    qs = LibroFicha.objects.select_related("editorial")
+    # Solo libros de editoriales ACTIVAS
+    qs = (LibroFicha.objects
+          .select_related("editorial")
+          .filter(editorial__is_active=True))
 
     role = getattr(getattr(user, "profile", None), "role", None)
 
@@ -155,9 +158,11 @@ def build_queryset_for_user(user, params):
     if date_to:
         qs = qs.filter(fecha_edicion__lte=date_to) # filtra registros con fecha_edicion menor o igual a date_to
 
-    # --- restricción por rol (EDITOR: solo sus editoriales) ---
+    # restricción por rol (EDITOR: solo sus editoriales activas)
     if role == Profile.ROLE_EDITOR:
-        ed_ids = UsuarioEditorial.objects.filter(user=user).values_list("editorial_id", flat=True)
+        ed_ids = (UsuarioEditorial.objects
+                  .filter(user=user, editorial__is_active=True)  
+                  .values_list("editorial_id", flat=True))
         qs = qs.filter(editorial_id__in=list(ed_ids))
 
     # --- orden ---
