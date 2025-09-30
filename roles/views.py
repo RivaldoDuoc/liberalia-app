@@ -13,7 +13,7 @@ from templates.reports.search_result import exportar_excel
 from django.db.models import ForeignKey
 from datetime import datetime, date, datetime as dt
 from django.urls import reverse
-from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm
+from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm, EditarEditorialForm
 from decimal import Decimal  
 from django import forms
 
@@ -29,7 +29,7 @@ from django.views.generic import ListView
 from django.db.models import Q, Prefetch
 
 import os
-from django.http import FileResponse
+from django.http import FileResponse, QueryDict
 from django.conf import settings
 
 
@@ -1093,3 +1093,142 @@ def upload_fichas_json(request):
         return JsonResponse({'ok': False, 'created': 0, 'failed': len(instances), 'errors': [{'row': None, 'error': 'Error interno al crear registros. Contacte al administrador.'}]}, status=500)
 
     return JsonResponse({'ok': True, 'created': created, 'failed': len(failed), 'errors': failed})
+
+
+# -----------------------------------------------------------
+# MANTENEDOR DE EDITORIALES - LISTAR TODAS LAS EDITORIALES
+# -----------------------------------------------------------
+
+class EditorialesListarView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    template_name = "roles/editoriales.html"
+    context_object_name = "editoriales"
+    paginate_by = 10
+
+    def test_func(self):
+        perfil = getattr(self.request.user, "profile", None)
+        return getattr(perfil, "role", None) == Profile.ROLE_ADMIN
+
+    def get_queryset(self):
+        q_nombre   = (self.request.GET.get("q_nombre")   or "").strip()
+        q_idfiscal = (self.request.GET.get("q_idfiscal") or "").strip()
+        estado     = (self.request.GET.get("estado")     or "all").strip().lower()
+        if estado not in {"all", "active", "inactive"}:
+            estado = "all"
+
+        prefetch_usuarios_activos = Prefetch(
+            "usuarioeditorial_set",
+            queryset=UsuarioEditorial.objects.select_related("user")
+                     .filter(user__is_active=True).order_by("user__email"),
+        )
+
+        qs = Editorial.objects.prefetch_related(prefetch_usuarios_activos).order_by("nombre")
+
+        if q_nombre:
+            qs = qs.filter(nombre__icontains=q_nombre)
+        if q_idfiscal:
+            qs = qs.filter(id_fiscal__icontains=q_idfiscal)
+
+        # ←—— Filtro por estado
+        if estado == "active":
+            qs = qs.filter(is_active=True)
+        elif estado == "inactive":
+            qs = qs.filter(is_active=False)
+
+        # Preservar filtros en la paginación
+        qs_dict = QueryDict(mutable=True)
+        if q_nombre:   qs_dict["q_nombre"]   = q_nombre
+        if q_idfiscal: qs_dict["q_idfiscal"] = q_idfiscal
+        if estado:     qs_dict["estado"]     = estado
+
+        self.extra_context = {
+            "q_nombre": q_nombre,
+            "q_idfiscal": q_idfiscal,
+            "estado": estado,                
+            "base_qs": urlencode(qs_dict),
+        }
+        return qs
+
+
+# -----------------------------
+# EDITAR EDITORIAL 
+# -----------------------------
+class EditarEditorialView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Actualiza una Editorial.
+    - Requiere rol ADMIN.
+    - Acepta POST form-encoded o JSON (Content-Type: application/json).
+    - Devuelve JSON con ok/errores.
+    """
+
+    def test_func(self):
+        perfil = getattr(self.request.user, "profile", None)
+        return getattr(perfil, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, editorial_id: int):
+        editorial = get_object_or_404(Editorial, pk=editorial_id)
+
+        data = request.POST
+        if request.content_type == "application/json":
+            import json
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except Exception:
+                return JsonResponse({"ok": False, "errors": {"__all__": ["JSON inválido"]}}, status=400)
+
+        form = EditarEditorialForm(
+            data={
+                "nombre": (data.get("nombre") or "").strip(),
+                "id_fiscal": (data.get("id_fiscal") or "").strip(),
+                "cargo_origen": data.get("cargo_origen"),
+                "gastos_indirectos": data.get("gastos_indirectos"),
+                "recargo_fletes": data.get("recargo_fletes"),
+                "margen_comercializacion": data.get("margen_comercializacion"),
+            },
+            instance=editorial
+        )
+
+        if not form.is_valid():
+            return JsonResponse({"ok": False, "errors": form.errors}, status=400)
+
+        form.save()
+        return JsonResponse({"ok": True})
+    
+
+# -----------------------------
+# Vista — endpoint para alternar estado de Editorial habilitada/deshabilitada
+# -----------------------------
+
+class ToggleEditorialEstadoView(LoginRequiredMixin, UserPassesTestMixin, View):
+    """
+    Habilita/Deshabilita una Editorial.
+    - Requiere rol ADMIN (mismo test_func que ya usas).
+    - POST: alterna el estado o respeta 'activo' si viene en el body.
+    Respuesta: { ok: True, nuevo_estado: bool }
+    """
+    def test_func(self):
+        perfil = getattr(self.request.user, "profile", None)
+        # Ajusta si tu app usa otro método para validar admin
+        return getattr(perfil, "role", None) == Profile.ROLE_ADMIN
+
+    def post(self, request, editorial_id: int):
+        ed = get_object_or_404(Editorial, pk=editorial_id)
+
+        # Si llega un JSON con {"activo": true/false}, lo respeta;
+        # si no, invierte el estado.
+        activo = None
+        if request.content_type == "application/json":
+            import json
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+                if "activo" in data:
+                    activo = bool(data["activo"])
+            except Exception:
+                pass
+
+        if activo is None:
+            ed.is_active = not ed.is_active
+        else:
+            ed.is_active = activo
+
+        ed.save(update_fields=["is_active"])
+        return JsonResponse({"ok": True, "nuevo_estado": ed.is_active})

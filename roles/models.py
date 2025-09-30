@@ -62,6 +62,9 @@ class Editorial(models.Model):
         help_text="Margen de comercialización (% sobre el costo)"
     )
 
+    # Campo booleano para habilitar/deshabilitar editorial
+    is_active = models.BooleanField(default=True, db_index=True, help_text="Si está deshabilitada no se puede editar")
+
     #Meta sirve para cambiar el nombre que aparece en el admin de Django.
 
     class Meta:

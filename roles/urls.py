@@ -15,6 +15,9 @@ from .views import (
     InvitarUsuarioView, #invitar usuarios
     ToggleUsuarioActivoView, #para activar o desactivar botones (Habilitar / Deshabilitar)
     LibroDeleteView,
+    EditorialesListarView,
+    EditarEditorialView,
+    ToggleEditorialEstadoView,
     ficha_upload,
     upload_fichas_json,
     descargar_plantilla_excel
@@ -38,5 +41,10 @@ urlpatterns = [
     path("admin/usuarios/<int:user_id>/editar/", EditarUsuarioView.as_view(), name="usuarios_editar"),
     path("admin/usuarios/<int:user_id>/toggle-activo/", ToggleUsuarioActivoView.as_view(), name="usuarios_toggle_activo"),
     path("admin/usuarios/invitar/", InvitarUsuarioView.as_view(), name="usuarios_invitar"),
+
+    # Mantenedor de Editoriales
+    path("admin/editoriales/", EditorialesListarView.as_view(), name="editoriales_mantenedor"),
+    path("admin/editoriales/<int:editorial_id>/editar/", EditarEditorialView.as_view(), name="editoriales_editar"),
+    path("admin/editoriales/<int:editorial_id>/toggle/", ToggleEditorialEstadoView.as_view(), name="editoriales_toggle"),
 ]
 

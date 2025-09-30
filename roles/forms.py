@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 import re
-
+from decimal import Decimal
 from catalogo.models import LibroFicha, TipoTapa, Moneda, Idioma, Pais
 from roles.models import UsuarioEditorial, Editorial
 
@@ -211,3 +211,54 @@ class EditarUsuarioForm(forms.Form):
         required=False,
         widget=forms.SelectMultiple(attrs={"class": "form-select", "size": 6})
     )
+
+# ===========================
+# FORMULARIO EDITAR EDITORIAL
+# ===========================
+from decimal import Decimal
+from django.core.exceptions import ValidationError
+from django import forms
+
+class EditarEditorialForm(forms.ModelForm):
+    """
+    Form para editar una Editorial.
+    - El 'id' NO se edita (lo maneja la vista por instancia).
+    - Los usuarios asociados NO se editan aquí.
+    """
+
+    class Meta:
+        model = Editorial
+        fields = [
+            "nombre",
+            "id_fiscal",
+            "cargo_origen",
+            "gastos_indirectos",
+            "recargo_fletes",
+            "margen_comercializacion",
+        ]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "maxlength": 150, "required": True}),
+            "id_fiscal": forms.TextInput(attrs={"class": "form-control", "maxlength": 50}),
+            "cargo_origen": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+            "gastos_indirectos": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+            "recargo_fletes": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+            "margen_comercializacion": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0", "max": "100"}),
+        }
+
+    # Helper de validación 0 a 100 para los %.
+    def _clean_pct(self, field_name: str) -> Decimal:
+        raw = self.cleaned_data.get(field_name)
+        if raw in (None, ""):
+            return Decimal("0")
+        try:
+            val = Decimal(str(raw))
+        except Exception:
+            raise ValidationError("Formato inválido. Use números con hasta 2 decimales.")
+        if val < 0 or val > 100:
+            raise ValidationError("Debe estar entre 0 y 100.")
+        return val
+
+    def clean_cargo_origen(self): return self._clean_pct("cargo_origen")
+    def clean_gastos_indirectos(self): return self._clean_pct("gastos_indirectos")
+    def clean_recargo_fletes(self): return self._clean_pct("recargo_fletes")
+    def clean_margen_comercializacion(self): return self._clean_pct("margen_comercializacion")
