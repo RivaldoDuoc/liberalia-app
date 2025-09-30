@@ -110,52 +110,66 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-
+    // Guardar (con confirmación)
     const btnGuardar = $('#btnGuardarEditar');
     if (btnGuardar) {
-        btnGuardar.addEventListener('click', async () => {
-            hideAlert();
+      btnGuardar.addEventListener('click', async () => {
+        hideAlert();
 
-            const username = ($('#editarUsername').value || '').trim();
-            const nombre = ($('#editarNombre').value || '').trim();
-            const apellido = ($('#editarApellido').value || '').trim();
-            const nombreCompleto = `${nombre} ${apellido}`.trim() || username;
+        const username = ($('#editarUsername').value || '').trim();
+        const nombre   = ($('#editarNombre').value   || '').trim();
+        const apellido = ($('#editarApellido').value || '').trim();
+        const nombreCompleto = `${nombre} ${apellido}`.trim() || username;
 
-            const ok = await confirmarGuardarModal(`¿Deseas guardar los cambios del usuario: ${nombreCompleto}?`);
-            if (!ok) return;
+        // modal de confirmación propio
+        const ok = await confirmarGuardarModal(`¿Deseas guardar los cambios del usuario: ${nombreCompleto}?`);
+        if (!ok) return;
 
-            const userId = $('#editarUserId').value;
-            const rolActual = $('#editarRol').value;
-            const selEd = $('#editarEditoriales');
-            const editoriales = selEd ? [...selEd.selectedOptions].map(o => o.value) : [];
+        const userId    = $('#editarUserId').value;
+        const rolActual = $('#editarRol').value;
+        const selEd     = $('#editarEditoriales');
+        const editoriales = selEd ? [...selEd.selectedOptions].map(o => o.value) : [];
 
-            const csrfInput = document.querySelector('#formEditarUsuario input[name="csrfmiddlewaretoken"]');
-            const csrf = csrfInput ? csrfInput.value : '';
+        // CSRF desde el form del modal
+        const csrfInput = document.querySelector('#formEditarUsuario input[name="csrfmiddlewaretoken"]');
+        const csrf = csrfInput ? csrfInput.value : '';
 
-            const pattern = (window.EDITAR_URL_PATTERN || '/panel/admin/usuarios/0/editar/');
-            const url = pattern.replace('/0/', `/${userId}/`);
+        // URL patrón
+        const pattern = (window.EDITAR_URL_PATTERN || '/panel/admin/usuarios/0/editar/');
+        const url = pattern.replace('/0/', `/${userId}/`);
 
-            try {
-            const resp = await fetch(url, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nombre, apellido, correo, rol, editoriales, id_fiscal: idFiscal })
-            });
-                const data = await resp.json();
-                if (!resp.ok || !data.ok) {
-                    const msg = data.errors
-                        ? Object.entries(data.errors).map(([k, v]) => `${k}: ${v}`).join(' | ')
-                        : 'Error desconocido';
-                    showAlert('danger', msg);
-                    return;
-                }
-                showAlert('success', 'Cambios guardados correctamente.');
-                setTimeout(() => window.location.reload(), 900);
-            } catch (e) {
-                showAlert('danger', `Error de red: ${e}`);
-            }
-        });
+        try {
+          const resp = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+            // enviar solo lo que el backend espera
+            body: JSON.stringify({ nombre, apellido, rol: rolActual, editoriales })
+          });
+
+          const contentType = resp.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            const html = await resp.text();
+            showAlert('danger', 'Respuesta no válida del servidor.');
+            console.error('Respuesta HTML:', html);
+            return;
+          }
+
+          const data = await resp.json();
+          if (!resp.ok || !data.ok) {
+            const msg = data.errors
+              ? Object.entries(data.errors).map(([k, v]) => `${k}: ${v}`).join(' | ')
+              : (data.error || 'Error desconocido');
+            showAlert('danger', msg);
+            return;
+          }
+
+          showAlert('success', 'Cambios guardados correctamente.');
+          setTimeout(() => window.location.reload(), 900);
+        } catch (e) {
+          showAlert('danger', `Error de red: ${e}`);
+        }
+      });
     }
 });
 
