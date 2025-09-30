@@ -36,3 +36,4 @@ Aplicación web desarrollada con Django y MySQL para gestionar fichas editoriale
 - Nicolás Correa
 - Rivaldo Uribe
 
+ 
