@@ -308,15 +308,21 @@ a:hover {
 }
 
 /* Tamaño compacto (mismo que el de confirmar guardar) */
-.modal-confirmar { max-width: 380px; width: 100%; }
+.modal-confirmar {
+  max-width: 380px;
+  width: 100%;
+}
 
 /* Backdrop opaco agradable */
-.modal-backdrop.show { opacity: .55 !important; }
+.modal-backdrop.show {
+  opacity: .55 !important;
+}
 
 
 /* Fondo personalizado del toast */
 #toast-general {
-  background-color: #7b1e3e !important;  /* Burdeo institucional */
+  background-color: #7b1e3e !important;
+  /* Burdeo institucional */
   color: white;
 }
 
@@ -332,3 +338,102 @@ a:hover {
 #modalInvitarUsuario .form-select {
   background-color: #f9f9fb;
 }
+
+
+/* === MODAL EDICIÓN — EDITORIALES === */
+
+/* Inputs editables con fondo rosado suave */
+#modalEditarEditorial input.form-control,
+#modalEditarEditorial select.form-select {
+  background-color: #ffe6f0 !important;
+}
+
+/* Lectura/disabled en gris y cursor bloqueado */
+#modalEditarEditorial input.form-control[readonly],
+#modalEditarEditorial select.form-select:disabled {
+  background-color: #eef1f5 !important;
+  cursor: not-allowed;
+}
+
+#modalEditarEditorial .form-control[readonly] {
+  border-color: #d9dee3;
+}
+
+/* Ancho del modal de edición */
+.modal-editar {
+  max-width: 500px;
+  width: 100%;
+}
+
+/* === MODAL CONFIRMACIÓN — EDITORIALES === */
+
+/* Tamaño compacto del modal de confirmación */
+.modal-confirmar {
+  max-width: 380px;
+  width: 100%;
+}
+
+/* Fondo suave y borde */
+#modalConfirmarGuardarEditorial .modal-content {
+  background-color: #f5f7fb !important;
+  border: 1px solid #d0d6e2;
+}
+
+/* Backdrop un poco más opaco */
+.modal-backdrop.show {
+  opacity: .55 !important;
+}
+
+
+/* Igual que en usuarios: opacar botón Editar cuando inactiva */
+.editorial-inactiva .btn-editar {
+  opacity: .7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Badge "Inactivo" ya existe para usuarios; lo reutilizamos */
+.badge-inactivo {
+  background-color: #a03c3c;
+  color: white;
+}
+
+/* Fondo y tamaño del modal de confirmación  */
+#modalConfirmToggleEditorial .modal-content {
+  background-color: #f5f7fb !important;
+  border: 1px solid #d0d6e2;
+}
+
+/* Tamaño compacto consistente */
+.modal-confirmar {
+  max-width: 380px;
+  width: 100%;
+}
+
+/* backdrop más opaco */
+.modal-backdrop.show {
+  opacity: .55 !important;
+}
+
+
+.thead-brand th {
+  color: var(--brand) !important;
+  font-weight: 700;
+}
+
+.input-clear-btn {
+  position: absolute;
+  right: 3rem;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0;
+  line-height: 1;
+  color: var(--ink-700);
+  font-size: 1rem;
+  z-index: 10;
+}
+
+.input-clear-btn:hover {
+  color: var(--brand);
+}
+
