@@ -5,3 +5,4 @@ mysqlclient
 openpyxl
 requests
 whitenoise
+django-crontab

@@ -21,6 +21,8 @@ INSTALLED_APPS = [
     'accounts',
     'roles.apps.RolesConfig',
     "catalogo",
+    # django-crontab: permite programar tareas periódicas que ejecutan comandos de management
+    'django_crontab',
 ]
 
 MIDDLEWARE = [
@@ -137,3 +139,14 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'  # TLS = False en 
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'novedades@liberalia.cl')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL  
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 30)) 
+
+# Configuración de django-crontab
+# Este CRON ejecuta el comando de management que actualiza el tipo de cambio todos los días a las 08:00
+CRONJOBS = [
+    ("0 8 * * *", "python manage.py actualizar_tc", ">> " + str(BASE_DIR / "cron_tc.log") + " 2>&1"),
+]
+
+# Nota: usar los comandos:
+#   python manage.py crontab add    -> agrega las tareas al cron del sistema
+#   python manage.py crontab remove -> las elimina
+#   python manage.py crontab show   -> muestra las entradas instaladas
