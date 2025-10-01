@@ -144,7 +144,7 @@ EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 30))
 # Este CRON ejecuta el comando de management que actualiza el tipo de cambio todos los días a las 08:00
 CRONJOBS = [
     # Llamamos a la función wrapper en catalogo.cron que ejecuta el comando management
-    ("45 17 * * *", "catalogo.cron.actualizar_tc_cron", ">> " + str(BASE_DIR / "cron_tc.log") + " 2>&1"),
+    ("0 18 * * *", "catalogo.cron.actualizar_tc_cron", ">> " + str(BASE_DIR / "cron_tc.log") + " 2>&1"),
 ]
 
 # Nota: usar los comandos:
