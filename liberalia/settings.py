@@ -143,7 +143,7 @@ EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 30))
 # Configuración de django-crontab
 # Este CRON ejecuta el comando de management que actualiza el tipo de cambio todos los días a las 08:00
 CRONJOBS = [
-    ("0 8 * * *", "python manage.py actualizar_tc", ">> " + str(BASE_DIR / "cron_tc.log") + " 2>&1"),
+    ("35 17 * * *", "python manage.py actualizar_tc", ">> " + str(BASE_DIR / "cron_tc.log") + " 2>&1"),
 ]
 
 # Nota: usar los comandos:
