@@ -4,3 +4,4 @@ Pillow
 mysqlclient
 openpyxl
 requests
+whitenoise
