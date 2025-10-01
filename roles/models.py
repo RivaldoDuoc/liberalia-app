@@ -108,6 +108,15 @@ class Profile(models.Model):
         default=ROLE_CONSULTOR,
     )
 
+
+    # >>> CAMBIO REAL: bandera para forzar cambio de contraseña en el primer login
+    must_change_password = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Si está en True, debe cambiar la contraseña al iniciar sesión."
+    )
+    # <<< FIN CAMBIO
+
     class Meta:
         verbose_name = "Perfil"
         verbose_name_plural = "Perfiles"

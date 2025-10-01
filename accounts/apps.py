@@ -21,3 +21,6 @@ class AccountsConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     # Especificamos el nombre de la app (usada por Django para reconocerla)
     name = 'accounts'
+
+    def ready(self):
+        import accounts.signals  # registra la signal

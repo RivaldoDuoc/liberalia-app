@@ -809,6 +809,11 @@ class InvitarUsuarioView(LoginRequiredMixin, UserPassesTestMixin, View):
                     profile.role = rol
                     profile.save(update_fields=["role"])
 
+
+                profile.must_change_password = True               
+                profile.save(update_fields=["role", "must_change_password"])
+    
+
                 # Si es EDITOR, lo asocio con las editoriales seleccionadas
                 if rol == Profile.ROLE_EDITOR and ed_ids:
                     editoriales = Editorial.objects.filter(id__in=ed_ids)

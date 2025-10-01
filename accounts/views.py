@@ -61,8 +61,16 @@ class LoginView(View):
             messages.error(request, 'Correo o contraseña inválidos.')
             return render(request, self.template_name, {'form': form})
 
-        # Si la autenticación es correcta, hacemos login
-        login(request, user_auth)        
+        # Si la autenticación es correcta, hacemos login - AQUÍ REALIZAR CHEQUEO DE ARCHIVO PARA REDIRIGIR A CAMBIO CONTRASEÑA
+        login(request, user_auth)   
+
+         # >>> CAMBIO REAL: forzar cambio de contraseña en primer login
+        if getattr(getattr(user_auth, "profile", None), "must_change_password", False):
+            return redirect('accounts:password_change')
+        # <<< FIN CAMBIO
+
+
+
         return redirect('/')
 
 # --------------------------------------------------------------------------
@@ -90,7 +98,13 @@ def home(request):
 
     # Si el usuario está autenticado, lo redirigimos según su rol
     if request.user.is_authenticated:
+
+      
+
         return redirect(_role_redirect(request.user))
     
     # Si no está logueado, lo llevamos al login
     return redirect("accounts:login")
+
+
+
