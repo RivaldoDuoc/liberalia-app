@@ -25,7 +25,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -53,11 +52,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'liberalia.wsgi.application'
 
-# STORAGES = {
-#     "staticfiles": {
-#         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-#     },
-# }
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -107,9 +101,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = '/novedades/static/'   # URL pública
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')  # carpeta destino collectstatic
-STATICFILES_DIRS = []
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
 
 
 # Default primary key field type

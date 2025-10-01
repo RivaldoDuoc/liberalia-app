@@ -1,5 +1,0 @@
-Alias /novedades/static /home/liberali/repositories/novedades/static
-
-<Directory /home/liberali/repositories/novedades/static>
-    Require all granted
-</Directory>
