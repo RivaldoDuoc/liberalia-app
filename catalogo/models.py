@@ -1,5 +1,5 @@
 
-from django.db import models
+from django.db import models, connection
 from django.core.validators import RegexValidator, MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
@@ -161,6 +161,15 @@ class LibroFicha(models.Model):
 
     def __str__(self) -> str:
         return f"{self.isbn} · {self.titulo}"
+    
+    # llamar a la función fn_calcula_pvp() pasando el ID del libro
+    @property
+    def pvp_calculado(self):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT fn_calcula_pvp(%s)", [self.id])
+            result = cursor.fetchone()
+            return result[0] if result else None
+  
 
 
 # ============================

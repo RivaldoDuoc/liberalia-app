@@ -205,24 +205,17 @@
 
         <dt class="col-sm-4 text-muted">Desc. distribuidor</dt>
         <dd class="col-sm-8">{{ obj.descuento_distribuidor|default:"—" }} %</dd>
-
-
-        <!-- Nuevos campos de la editorial. NO MOSTRAR COMO SE CALCULA EL PRECIO. DEJARLO SOLO PARA EL ADMIN-->
-        <dt class="col-sm-4 text-muted">Cargo origen</dt>
-        <dd class="col-sm-8">{{ obj.editorial.cargo_origen|default:"0" }} %</dd>
-
-        <dt class="col-sm-4 text-muted">Recargo fletes y gastos</dt>
-        <dd class="col-sm-8">{{ obj.editorial.recargo_fletes|default:"0" }} %</dd>
-
-        <dt class="col-sm-4 text-muted">Gastos indirectos</dt>
-        <dd class="col-sm-8">{{ obj.editorial.gastos_indirectos|default:"0" }} %</dd>
-
-        <dt class="col-sm-4 text-muted">Margen de comercialización</dt>
-        <dd class="col-sm-8">{{ obj.editorial.margen_comercializacion|default:"0" }} %</dd>
-
-        <!-- Precio sugerido -->
-        <dt class="col-sm-4 text-muted">Precio sugerido</dt>
-        <dd class="col-sm-8">{{ obj.precio_final_sugerido|floatformat:2 }}</dd>
+      
+        <!-- Precio sugerido (PVP con IVA) -->
+        <dt class="col-sm-4 text-muted">PVP aproximado</dt>
+        {% load humanize %}
+        <dd class="col-sm-8">
+          {% if pvp %}
+            ${{ pvp|intcomma }}
+          {% else %}
+            —
+          {% endif %}
+        </dd>
 
       </dl>
     </div>

@@ -1,7 +1,7 @@
 # catalogo/views.py
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Q
+from django.db.models import Q, F, Func, DecimalField
 from .models import LibroFicha
 
 #Actualización tipo de cambio
@@ -16,14 +16,29 @@ def libro_detalle(request, isbn):
     # Normaliza ISBN (acepta con o sin guiones/espacios)
     isbn_norm = isbn.replace("-", "").replace(" ", "").strip()
 
-    obj = get_object_or_404(
-        LibroFicha.objects.select_related("editorial").filter(
-            Q(isbn=isbn) | Q(isbn=isbn_norm) | Q(isbn__iexact=isbn)
+    # Usamos annotate para traer el PVP desde MySQL
+    qs = (
+        LibroFicha.objects
+        .select_related("editorial", "moneda")
+        .annotate(pvp=FnCalculaPVP(F('id')))   # <-- alias claro 'pvp'
+        .filter(
+            Q(isbn=isbn) |
+            Q(isbn=isbn_norm) |
+            Q(isbn__iexact=isbn)
         )
     )
-    return render(request, "catalogo/libro_detalle.html", {"obj": obj})
 
+    # get_object_or_404 sobre el mismo queryset anotado
+    obj = get_object_or_404(qs)
 
+    return render(
+        request,
+        "catalogo/libro_detalle.html",
+        {
+            "obj": obj,      # incluye obj.pvp gracias al annotate
+            "pvp": obj.pvp,  # por si te resulta más cómodo en el template
+        }
+    )
 
 def actualizar_tc(request):
     # Seguridad por token (si no quieres token, elimina este bloque)
@@ -75,4 +90,9 @@ def precio_final_sugerido(self) -> Decimal:
             (self.editorial.margen_comercializacion or 0)
         )
         return self.precio * (Decimal("1") + Decimal(total) / Decimal("100"))
-    
+
+
+# Para la función MySQL fn_calcula_pvp(id) ---
+class FnCalculaPVP(Func):
+    function = 'fn_calcula_pvp'
+    output_field = DecimalField(max_digits=12, decimal_places=0)

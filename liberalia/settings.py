@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     'accounts',
     'roles.apps.RolesConfig',
     "catalogo",
+    'django.contrib.humanize',
 ]
 
 MIDDLEWARE = [
