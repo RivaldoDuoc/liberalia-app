@@ -83,7 +83,7 @@ class LibroIdentForm(BaseEditorForm):
         ]
         widgets = {
             "isbn": forms.TextInput(attrs={
-                "maxlength": 16, "class": "form-control", "required": True,
+                "maxlength": 17, "class": "form-control", "required": True,
                 "placeholder": "ISBN-10 o ISBN-13"
             }),
             "ean": forms.TextInput(attrs={

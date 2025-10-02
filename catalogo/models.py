@@ -88,7 +88,7 @@ class Idioma(models.Model): # Modelo de idioma con código ISO 639-1
 
 class LibroFicha(models.Model):
     # Identificadores
-    isbn  = models.CharField(max_length=16, unique=True, db_index=True)   # usado en panel/búsquedas (Largo 16, por si tienes guiones)
+    isbn  = models.CharField(max_length=17, unique=True, db_index=True)   # usado en panel/búsquedas (Largo 16, por si tienes guiones)
     ean   = models.CharField(max_length=16, blank=True, null=True)
 
     editorial = models.ForeignKey(
