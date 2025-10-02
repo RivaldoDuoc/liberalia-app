@@ -38,7 +38,7 @@ import logging
 import secrets
 from django.conf import settings
 from django.core.mail import send_mail
-from django.db import transaction
+from django.db import transaction, connection
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
 # ----------------------------
@@ -241,6 +241,7 @@ class BasePanelView(LoginRequiredMixin, View):
 
         qs = build_queryset_for_user(request.user, params)
         rows = []
+
         for obj in qs:
             rec = {}
             for field in obj._meta.fields:
@@ -250,13 +251,23 @@ class BasePanelView(LoginRequiredMixin, View):
                     if val is None:
                         rec[name] = None
                     else:
-                        rec[name] = getattr(val, 'nombre', None) or getattr(val, 'code', None) or str(val)
+                        rec[name] = (
+                            getattr(val, 'nombre', None) or 
+                            getattr(val, 'code', None) or 
+                            str(val)
+                        )
                 else:
                     rec[name] = val
+
+            # Agrega el PVP usando la función SQL vn_calcula_pvp
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT fn_calcula_pvp(%s)", [obj.id])
+                pvp_result = cursor.fetchone()
+                rec["PVP"] = pvp_result[0] if pvp_result else None
+
             rows.append(rec)
 
         return exportar_excel(rows)
-
 
 class PanelView(BasePanelView):
     """Panel unificado; el template condiciona por rol."""
