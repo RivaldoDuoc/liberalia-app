@@ -47,11 +47,22 @@
             </div>
         </div>
 
-        <!-- Espacio reservado por consistencia visual -->
+        <!-- Crear Editorial -->
         <div class="col-12 col-md-2 text-md-end">
-            <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
-            <div class="w-100"></div>
+        <label class="form-label mb-1 d-none d-md-block">&nbsp;</label>
+        <div>
+            <button
+            type="button"
+            class="btn btn-outline-primary w-100 w-md-auto"
+            id="btnAbrirCrearEditorial"
+            data-bs-toggle="modal"
+            data-bs-target="#modalCrearEditorial"
+            title="Crear nueva editorial">
+            Nueva Editorial
+            </button>
         </div>
+        </div>
+
 
 <!-- Filtro por estado: más pequeños, alineado a la izquierda -->
 <div class="col-12">
@@ -323,11 +334,97 @@
     </div>
 </div>
 
+
+<!-- Modal: Crear Editorial -->
+<div class="modal fade" id="modalCrearEditorial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-editar">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Nueva Editorial</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert d-none" id="crearEditorialAlert"></div>
+
+        <form id="formCrearEditorial">
+          {% csrf_token %}
+
+          <div class="mb-2">
+            <label class="form-label">Nombre Editorial</label>
+            <input id="cr-nombre" type="text" class="form-control" maxlength="150" required>
+            <div class="invalid-feedback" data-for="nombre"></div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">ID Fiscal</label>
+            <input id="cr-idfiscal" type="text" class="form-control" maxlength="50" required>
+            <div class="invalid-feedback" data-for="id_fiscal"></div>
+          </div>
+
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Cargo Origen (%)</label>
+              <input id="cr-cargo" type="number" step="0.01" min="0" max="100" class="form-control" required>
+              <div class="invalid-feedback" data-for="cargo_origen"></div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Gastos Indirectos (%)</label>
+              <input id="cr-gastos" type="number" step="0.01" min="0" max="100" class="form-control" required>
+              <div class="invalid-feedback" data-for="gastos_indirectos"></div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Fletes e Intern. (%)</label>
+              <input id="cr-fletes" type="number" step="0.01" min="0" max="100" class="form-control" required>
+              <div class="invalid-feedback" data-for="recargo_fletes"></div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Margen Comercial (%)</label>
+              <input id="cr-margen" type="number" step="0.01" min="0" max="100" class="form-control" required>
+              <div class="invalid-feedback" data-for="margen_comercializacion"></div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-primary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-outline-primary" id="btnCrearEditorial" type="button">Guardar</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Confirmar creación (tamaño pequeño) -->
+<div class="modal fade" id="modalConfirmarCrearEditorial" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-confirmar">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirmar creación</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body text-center">
+        ¿Deseas crear la editorial <strong><span id="cr-resumen-nombre"></span></strong>?
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button class="btn btn-outline-primary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button id="btnConfirmarCrearEditorial" class="btn btn-outline-primary btn-sm" type="button">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <script>
     window.EDITORIALES_EDIT_URL_PATTERN = "{% url 'roles:editoriales_editar' 0 %}".replace('/0/', '/__ID__/');
     window.EDITORIALES_TOGGLE_URL_PATTERN = "{% url 'roles:editoriales_toggle' 0 %}".replace('/0/', '/__ID__/');
+    window.EDITORIALES_CREATE_URL = "{% url 'roles:editoriales_crear' %}";
 </script>
 <script src="{% static 'js/editoriales_editar.js' %}?v=2"></script>
 <script src="{% static 'js/editoriales_toggle.js' %}?v=1"></script>
+<script src="{% static 'js/editoriales_crear.js' %}?v=1"></script>
+
 
 {% endblock %}

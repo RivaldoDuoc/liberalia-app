@@ -437,3 +437,12 @@ a:hover {
   color: var(--brand);
 }
 
+/* Mismo color que en edición */
+#modalCrearEditorial input.form-control {
+  background-color: #ffe6f0 !important;  /* rosado suave */
+}
+
+/* Mensajes de error se ven mejor con este tono */
+#modalCrearEditorial .invalid-feedback {
+  display: block;
+}

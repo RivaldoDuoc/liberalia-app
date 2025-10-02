@@ -4,7 +4,7 @@
 # - Incluye vistas para crear y editar libros desde el panel del editor.
 # -------------------------------------------------------------------------------
 
-
+from . import views
 from django.urls import path
 from .views import (
     PanelView,                 # panel unificado
@@ -17,7 +17,7 @@ from .views import (
     LibroDeleteView,
     EditorialesListarView,
     EditarEditorialView,
-    ToggleEditorialEstadoView,
+    ToggleEditorialEstadoView,    
     ficha_upload,
     upload_fichas_json,
     descargar_plantilla_excel
@@ -46,5 +46,6 @@ urlpatterns = [
     path("admin/editoriales/", EditorialesListarView.as_view(), name="editoriales_mantenedor"),
     path("admin/editoriales/<int:editorial_id>/editar/", EditarEditorialView.as_view(), name="editoriales_editar"),
     path("admin/editoriales/<int:editorial_id>/toggle/", ToggleEditorialEstadoView.as_view(), name="editoriales_toggle"),
+    path("admin/editoriales/crear/", views.editoriales_crear, name="editoriales_crear")
 ]
 

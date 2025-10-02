@@ -14,7 +14,7 @@ from django.db.models import ForeignKey
 from datetime import datetime, date, datetime as dt
 from django.urls import reverse
 from .forms import LibroIdentForm, LibroTecnicaForm, LibroComercialForm, EditarEditorialForm
-from decimal import Decimal  
+from decimal import Decimal, InvalidOperation
 from django import forms
 
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
@@ -31,7 +31,7 @@ from django.db.models import Q, Prefetch
 import os
 from django.http import FileResponse, QueryDict
 from django.conf import settings
-
+from django.views.decorators.http import require_POST
 
 import json
 import logging
@@ -1253,3 +1253,74 @@ class ToggleEditorialEstadoView(LoginRequiredMixin, UserPassesTestMixin, View):
 
         ed.save(update_fields=["is_active"])
         return JsonResponse({"ok": True, "nuevo_estado": ed.is_active})
+
+# -----------------------------------------------------------
+# MANTENEDOR DE EDITORIALES - CREAR EDITORIALES
+# -----------------------------------------------------------
+
+def _is_admin(user) -> bool:
+    perfil = getattr(user, "profile", None)
+    return getattr(perfil, "role", None) == Profile.ROLE_ADMIN
+
+@login_required
+@require_POST
+def editoriales_crear(request):
+    if not _is_admin(request.user):
+        return JsonResponse({"ok": False, "error": "No autorizado."}, status=403)
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "JSON inválido."}, status=400)
+
+    # Normalización básica
+    nombre_raw = (data.get("nombre") or "").strip()
+    idf_raw    = (data.get("id_fiscal") or "").strip()
+
+    # Campos obligatorios
+    required = ["nombre","cargo_origen","gastos_indirectos","recargo_fletes","margen_comercializacion"]
+    errors = {}
+    for k in required:
+        if not str(data.get(k, "")).strip():
+            errors[k] = "Este campo es obligatorio"
+
+    # Validación de porcentajes 0–100
+    def clean_pct(key):
+        try:
+            d = Decimal(str(data.get(key, "")))
+        except (InvalidOperation, TypeError):
+            errors[key] = "Debe ser un número."
+            return None
+        if d < 0 or d > 100:
+            errors[key] = "Debe estar entre 0 y 100."
+        return d
+
+    if not errors:
+        co = clean_pct("cargo_origen")
+        gi = clean_pct("gastos_indirectos")
+        rf = clean_pct("recargo_fletes")
+        mc = clean_pct("margen_comercializacion")
+
+    # Unicidad: nombre e id_fiscal
+    if nombre_raw:
+        if Editorial.objects.filter(nombre__iexact=nombre_raw).exists():
+            errors["nombre"] = "Nombre Editorial ya existe"
+    if idf_raw:
+        if Editorial.objects.filter(id_fiscal__iexact=idf_raw).exists():
+            errors["id_fiscal"] = "ID Fiscal ya existe"
+
+    if errors:
+        return JsonResponse({"ok": False, "errors": errors}, status=400)
+
+    # Crear
+    with transaction.atomic():
+        ed = Editorial.objects.create(
+            nombre=nombre_raw,
+            id_fiscal=idf_raw,
+            cargo_origen=co,
+            gastos_indirectos=gi,
+            recargo_fletes=rf,
+            margen_comercializacion=mc,            
+        )
+
+    return JsonResponse({"ok": True, "id": ed.id})
