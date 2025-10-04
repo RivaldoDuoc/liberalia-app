@@ -34,7 +34,9 @@
 
         <!-- Columna izquierda: portada -->
         <div class="book-left">
-          {% if obj.portada %}
+          {% if obj.codigo_imagen %}
+            <img src="{% static 'media/' %}{{ obj.codigo_imagen }}" alt="Portada del libro" class="book-cover">
+          {% elif obj.portada %}
             <img src="{{ obj.portada.url }}" alt="Portada del libro" class="book-cover">
           {% else %}
             <img src="{% static 'img/cover.jpeg' %}" alt="Portada del libro" class="book-cover">
