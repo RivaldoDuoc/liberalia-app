@@ -16,8 +16,8 @@
 
 .book-cover {
   width: 400px;
-  height: auto;
-  object-fit: contain;
+  height: 500px;
+  object-fit: cover;
   border-radius: .5rem;
   display: block;
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
