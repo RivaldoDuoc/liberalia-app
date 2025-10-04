@@ -41,6 +41,10 @@ from django.core.mail import send_mail
 from django.db import transaction, connection
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
+
+from django.http import JsonResponse, HttpResponseBadRequest
+import uuid
+
 # ----------------------------
 # Helpers de rol
 # ----------------------------
@@ -1324,3 +1328,33 @@ def editoriales_crear(request):
         )
 
     return JsonResponse({"ok": True, "id": ed.id})
+
+@require_POST
+def upload_portada(request):
+    """
+    Recibe el archivo 'portada' por POST, lo guarda en MEDIA_ROOT/static/media/
+    y devuelve JSON: { success: True, codigo_imagen: "static/media/<file>" }
+    """
+    uploaded = request.FILES.get('portada')
+    if not uploaded:
+        return HttpResponseBadRequest('No se recibió el archivo "portada".')
+
+    # Carpeta destino: MEDIA_ROOT/static/media
+    upload_dir = os.path.join(getattr(settings, 'MEDIA_ROOT', ''), 'static', 'media')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generar nombre único manteniendo la extensión
+    _, ext = os.path.splitext(uploaded.name)
+    filename = f"{uuid.uuid4().hex}{ext.lower()}"
+    file_path = os.path.join(upload_dir, filename)
+
+    # Guardar archivo por chunks
+    try:
+        with open(file_path, 'wb+') as dest:
+            for chunk in uploaded.chunks():
+                dest.write(chunk)
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=500)
+
+    codigo_imagen = os.path.join('static', 'media', filename).replace('\\', '/')
+    return JsonResponse({'success': True, 'codigo_imagen': codigo_imagen, 'filename': filename})

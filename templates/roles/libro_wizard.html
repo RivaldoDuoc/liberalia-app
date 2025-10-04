@@ -275,9 +275,15 @@
                 <span class="ms-2" id="file-name">Sin archivos seleccionados</span>
               </div>
 
-              <input type="file" id="pickImgInput" name="portada" class="d-none"
-                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-                onchange="document.getElementById('file-name').textContent = this.files[0]?.name || 'Sin archivos seleccionados'">
+              <!-- file input: keep id, remove automatic onchange (we handle via JS) -->
+              <input type="file" id="pickImgInput" class="d-none"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+
+              <!-- preview & status -->
+              <div class="mt-2 d-flex align-items-center">
+                <img id="portadaPreview" src="" alt="" class="me-2" style="max-height:80px; display:none; border:1px solid #eaeaea; padding:2px;">
+                <small id="uploadStatus" class="text-muted">No subido</small>
+              </div>
 
               <input type="hidden" name="codigo_imagen" id="id_codigo_imagen"
                 value="{{ form.codigo_imagen.value|default:'' }}">
@@ -331,7 +337,7 @@
 <script src="{% static 'js/wizard_validacion.js' %}?v=2"></script>
 
 <script>
-  // Envía automáticamente cuando el usuario elige un archivo
+  // Envía automáticamente cuando el usuario elige un archivo (deprecated uploadForm handler)
   (function () {
     const input = document.getElementById('archivoInput');
     const form = document.getElementById('uploadForm');
@@ -340,6 +346,83 @@
         if (this.files && this.files.length) form.submit();
       });
     }
+  })();
+</script>
+
+<script>
+  // Upload portada immediately to server and put returned codigo in hidden input
+  (function () {
+    const fileInput = document.getElementById('pickImgInput');
+    const fileNameEl = document.getElementById('file-name');
+    const statusEl = document.getElementById('uploadStatus');
+    const previewImg = document.getElementById('portadaPreview');
+    const codigoInput = document.getElementById('id_codigo_imagen');
+
+    // Helper to read CSRF cookie
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const csrfToken = getCookie('csrftoken');
+
+    // URL of upload endpoint - ensure this view exists server-side
+    const uploadUrl = "{% url 'roles:upload_portada' %}";
+
+    if (!fileInput) return;
+
+    fileInput.addEventListener('change', async function () {
+      const file = this.files && this.files[0];
+      if (!file) return;
+
+      fileNameEl.textContent = file.name;
+      statusEl.textContent = 'Subiendo...';
+      statusEl.classList.remove('text-danger');
+      statusEl.classList.add('text-muted');
+
+      // show temporary preview
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'inline-block';
+      };
+      reader.readAsDataURL(file);
+
+      const formData = new FormData();
+      formData.append('portada', file);
+
+      try {
+        const resp = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': csrfToken
+          },
+          body: formData,
+          credentials: 'same-origin'
+        });
+
+        if (!resp.ok) throw new Error('Error de red: ' + resp.status);
+
+        const data = await resp.json();
+        if (data && data.success) {
+          // store returned code/filename so main form can reference the already uploaded image
+          codigoInput.value = data.codigo_imagen || data.filename || '';
+          // remove name attribute from file input to avoid double-submitting the binary with the main form
+          fileInput.removeAttribute('name');
+          statusEl.textContent = 'Subido';
+          statusEl.classList.remove('text-danger');
+          statusEl.classList.add('text-success');
+        } else {
+          throw new Error((data && data.error) ? data.error : 'Error al subir');
+        }
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.classList.remove('text-success');
+        statusEl.classList.add('text-danger');
+        // hide preview on error (optional)
+        previewImg.style.display = 'none';
+      }
+    });
   })();
 </script>
 

@@ -46,6 +46,9 @@ urlpatterns = [
     path("admin/editoriales/", EditorialesListarView.as_view(), name="editoriales_mantenedor"),
     path("admin/editoriales/<int:editorial_id>/editar/", EditarEditorialView.as_view(), name="editoriales_editar"),
     path("admin/editoriales/<int:editorial_id>/toggle/", ToggleEditorialEstadoView.as_view(), name="editoriales_toggle"),
-    path("admin/editoriales/crear/", views.editoriales_crear, name="editoriales_crear")
+    path("admin/editoriales/crear/", views.editoriales_crear, name="editoriales_crear"),
+
+    # Nueva ruta para upload_portada
+    path('upload-portada/', views.upload_portada, name='upload_portada'),
 ]
 
