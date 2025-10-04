@@ -371,12 +371,18 @@
 
     if (!fileInput) return;
 
-    fileInput.addEventListener('change', async function () {
+    // Keep the selected file in memory and show a preview, but DO NOT upload
+    // it yet. We'll upload when the user submits the final step (Guardar).
+    let pendingFile = null;
+
+    fileInput.addEventListener('change', function () {
       const file = this.files && this.files[0];
       if (!file) return;
 
+      pendingFile = file; // store for later upload
+
       fileNameEl.textContent = file.name;
-      statusEl.textContent = 'Subiendo...';
+      statusEl.textContent = 'Preparado para subir';
       statusEl.classList.remove('text-danger');
       statusEl.classList.add('text-muted');
 
@@ -387,42 +393,55 @@
         previewImg.style.display = 'inline-block';
       };
       reader.readAsDataURL(file);
-
-      const formData = new FormData();
-      formData.append('portada', file);
-
-      try {
-        const resp = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken
-          },
-          body: formData,
-          credentials: 'same-origin'
-        });
-
-        if (!resp.ok) throw new Error('Error de red: ' + resp.status);
-
-        const data = await resp.json();
-        if (data && data.success) {
-          // store returned code/filename so main form can reference the already uploaded image
-          codigoInput.value = data.codigo_imagen || data.filename || '';
-          // remove name attribute from file input to avoid double-submitting the binary with the main form
-          fileInput.removeAttribute('name');
-          statusEl.textContent = 'Subido';
-          statusEl.classList.remove('text-danger');
-          statusEl.classList.add('text-success');
-        } else {
-          throw new Error((data && data.error) ? data.error : 'Error al subir');
-        }
-      } catch (err) {
-        statusEl.textContent = 'Error: ' + err.message;
-        statusEl.classList.remove('text-success');
-        statusEl.classList.add('text-danger');
-        // hide preview on error (optional)
-        previewImg.style.display = 'none';
-      }
     });
+
+    // Intercept form submit to perform upload first when we're in the final step
+    const form = document.getElementById('wizardForm');
+    if (form) {
+      form.addEventListener('submit', async function (ev) {
+        const stepInput = form.querySelector('input[name="step"]');
+        const currentStep = stepInput ? stepInput.value : '';
+
+        // Only upload when user is submitting the final 'comercial' step
+        if (currentStep === 'comercial' && pendingFile) {
+          ev.preventDefault(); // wait until upload completes
+          statusEl.textContent = 'Subiendo...';
+          statusEl.classList.remove('text-danger');
+          statusEl.classList.add('text-muted');
+
+          try {
+            const uploadData = new FormData();
+            uploadData.append('portada', pendingFile);
+
+            const resp = await fetch(uploadUrl, {
+              method: 'POST',
+              headers: { 'X-CSRFToken': csrfToken },
+              body: uploadData,
+              credentials: 'same-origin'
+            });
+
+            if (!resp.ok) throw new Error('Error de red: ' + resp.status);
+            const data = await resp.json();
+            if (!(data && data.success)) throw new Error((data && data.error) ? data.error : 'Error al subir');
+
+            // set returned filename so backend can save reference
+            codigoInput.value = data.codigo_imagen || data.filename || '';
+            statusEl.textContent = 'Subido';
+            statusEl.classList.remove('text-danger');
+            statusEl.classList.add('text-success');
+
+            // now submit the form normally
+            form.submit();
+          } catch (err) {
+            statusEl.textContent = 'Error: ' + err.message;
+            statusEl.classList.remove('text-success');
+            statusEl.classList.add('text-danger');
+            // don't submit the form
+          }
+        }
+        // otherwise let the form submit as usual
+      });
+    }
   })();
 </script>
 
