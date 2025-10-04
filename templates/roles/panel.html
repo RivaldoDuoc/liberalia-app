@@ -21,6 +21,23 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
         setTimeout(() => this.blur(), 150);
       });
     });
+  }); 
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const alerts = document.querySelectorAll('.fade-out');
+    alerts.forEach(alert => {
+      setTimeout(() => {
+        alert.style.transition = 'opacity 1s ease';
+        alert.style.opacity = '0';
+
+        // Elimina el elemento del DOM después del fade
+        setTimeout(() => {
+          alert.remove();
+        }, 1000);
+      }, 2000);
+    });
   });
 </script>
 
@@ -45,13 +62,12 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
 
 <div class="container py-3">
 
-  {# ---- AVISOS (éxito al editar) ---- (HABRÍA QUE VER SI ESTO VA O NO) #}
   {% if messages %}
-    {% for message in messages %}
-      <div class="alert alert-success py-2 px-3 mb-3" role="alert">
-        {{ message }}
-      </div>
-    {% endfor %}
+  {% for message in messages %}
+  <div class="alert alert-success py-2 px-3 mb-3 fade-out" role="alert">
+    {{ message }}
+  </div>
+  {% endfor %}
   {% endif %}
 
   <!-- FILTRO PARA ADMIN Y CONSULTOR (SOLO BUSQUEDA POR EDITORIAL) -------->
@@ -214,11 +230,11 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
           <td>{{ r.fecha_edicion|date:"d/m/Y" }}</td>
           <td class="text-end">
             {% if can_edit and edit_url_name %}
-              <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}">Editar</a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}">Editar</a>
             {% elif show_detail %}
-              <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
             {% else %}
-              <span class="text-muted">—</span>
+            <span class="text-muted">—</span>
             {% endif %}
           </td>
         </tr>
