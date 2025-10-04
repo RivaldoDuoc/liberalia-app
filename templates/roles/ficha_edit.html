@@ -34,13 +34,15 @@
   .btn{padding:8px 16px;border-radius:6px;font-size:14px;cursor:pointer}
   .btn-outline{border:1px solid #ccc;background:#fff}
   .btn-primary{border:0;background:#2563eb;color:#fff}
+
 </style>
+
 
 <div class="container py-3">
   <h1>Editar</h1>
 
   <div class="card-slim">
-    <form method="post" class="form-grid" novalidate>
+    <form method="post" novalidate>
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ request.GET.next }}">
 
@@ -48,169 +50,239 @@
         <div class="error">{{ form.non_field_errors }}</div>
       {% endif %}
 
-      <!-- Identificación -->
-      <h2 class="section-title">Identificación del libro</h2>
-      <div class="grid-2">
-        <div>
-          <label for="{{ form.isbn.id_for_label }}">ISBN</label>
-          {{ form.isbn }}
-          {% if form.isbn.errors %}<div class="error">{{ form.isbn.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.ean.id_for_label }}">EAN-13</label>
-          {{ form.ean }}
-          {% if form.ean.errors %}<div class="error">{{ form.ean.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
+      <!-- Acordeón -->
+      <div class="accordion" id="accordionLibro">
 
-      <div class="grid-2">
-        <div>
-          <label for="{{ form.titulo.id_for_label }}">Título original</label>
-          {{ form.titulo }}
-          {% if form.titulo.errors %}<div class="error">{{ form.titulo.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.subtitulo.id_for_label }}">Subtítulo</label>
-          {{ form.subtitulo }}
-          {% if form.subtitulo.errors %}<div class="error">{{ form.subtitulo.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
+        <!-- Identificación -->
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingIdentificacion">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseIdentificacion" aria-expanded="true"
+                    aria-controls="collapseIdentificacion">
+              Identificación del libro
+            </button>
+          </h2>
+          <div id="collapseIdentificacion" class="accordion-collapse collapse show"
+               aria-labelledby="headingIdentificacion" data-bs-parent="#accordionLibro">
+            <div class="accordion-body">
+              <div class="grid-2">
+                <div>
+                  <label for="{{ form.isbn.id_for_label }}">ISBN</label>
+                  {{ form.isbn }}
+                  {% if form.isbn.errors %}<div class="error">{{ form.isbn.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.ean.id_for_label }}">EAN-13</label>
+                  {{ form.ean }}
+                  {% if form.ean.errors %}<div class="error">{{ form.ean.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
 
-      <div class="grid-3">
-        <div>
-          <label for="{{ form.autor.id_for_label }}">Autor(es)</label>
-          {{ form.autor }}
-          {% if form.autor.errors %}<div class="error">{{ form.autor.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.autor_prologo.id_for_label }}">Prólogo</label>
-          {{ form.autor_prologo }}
-          {% if form.autor_prologo.errors %}<div class="error">{{ form.autor_prologo.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.traductor.id_for_label }}">Traductor(es)</label>
-          {{ form.traductor }}
-          {% if form.traductor.errors %}<div class="error">{{ form.traductor.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
+              <div class="grid-2">
+                <div>
+                  <label for="{{ form.titulo.id_for_label }}">Título original</label>
+                  {{ form.titulo }}
+                  {% if form.titulo.errors %}<div class="error">{{ form.titulo.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.subtitulo.id_for_label }}">Subtítulo</label>
+                  {{ form.subtitulo }}
+                  {% if form.subtitulo.errors %}<div class="error">{{ form.subtitulo.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
 
-      <div>
-        <label for="{{ form.ilustrador.id_for_label }}">Ilustrador(es)</label>
-        {{ form.ilustrador }}
-        {% if form.ilustrador.errors %}<div class="error">{{ form.ilustrador.errors|striptags }}</div>{% endif %}
-      </div>
+              <div class="grid-3">
+                <div>
+                  <label for="{{ form.autor.id_for_label }}">Autor(es)</label>
+                  {{ form.autor }}
+                  {% if form.autor.errors %}<div class="error">{{ form.autor.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.autor_prologo.id_for_label }}">Prólogo</label>
+                  {{ form.autor_prologo }}
+                  {% if form.autor_prologo.errors %}<div class="error">{{ form.autor_prologo.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.traductor.id_for_label }}">Traductor(es)</label>
+                  {{ form.traductor }}
+                  {% if form.traductor.errors %}<div class="error">{{ form.traductor.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
 
-      <div class="divider"></div>
-      <p class="footer-note">Ficha técnica</p>
-      <div class="grid-3">
-        <div>
-          <label for="{{ form.tipo_tapa.id_for_label }}">Encuadernación</label>
-          {{ form.tipo_tapa }}
-          {% if form.tipo_tapa.errors %}<div class="error">{{ form.tipo_tapa.errors|striptags }}</div>{% endif %}
+              <div>
+                <label for="{{ form.ilustrador.id_for_label }}">Ilustrador(es)</label>
+                {{ form.ilustrador }}
+                {% if form.ilustrador.errors %}<div class="error">{{ form.ilustrador.errors|striptags }}</div>{% endif %}
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <label for="{{ form.numero_paginas.id_for_label }}">Páginas</label>
-          {{ form.numero_paginas }}
-          {% if form.numero_paginas.errors %}<div class="error">{{ form.numero_paginas.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.idioma_original.id_for_label }}">Idioma</label>
-          {{ form.idioma_original }}
-          {% if form.idioma_original.errors %}<div class="error">{{ form.idioma_original.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
 
-      <div class="grid-4">
-        <div>
-          <label for="{{ form.alto_cm.id_for_label }}">Alto (cm)</label>
-          {{ form.alto_cm }}
-          {% if form.alto_cm.errors %}<div class="error">{{ form.alto_cm.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.ancho_cm.id_for_label }}">Ancho (cm)</label>
-          {{ form.ancho_cm }}
-          {% if form.ancho_cm.errors %}<div class="error">{{ form.ancho_cm.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.grosor_cm.id_for_label }}">Grosor (cm)</label>
-          {{ form.grosor_cm }}
-          {% if form.grosor_cm.errors %}<div class="error">{{ form.grosor_cm.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.peso_gr.id_for_label }}">Peso (gr)</label>
-          {{ form.peso_gr }}
-          {% if form.peso_gr.errors %}<div class="error">{{ form.peso_gr.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
+        <!-- Ficha técnica -->
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingFichaTecnica">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseFichaTecnica" aria-expanded="false"
+                    aria-controls="collapseFichaTecnica">
+              Ficha técnica
+            </button>
+          </h2>
+          <div id="collapseFichaTecnica" class="accordion-collapse collapse"
+               aria-labelledby="headingFichaTecnica" data-bs-parent="#accordionLibro">
+            <div class="accordion-body">
+              <div class="grid-3">
+                <div>
+                  <label for="{{ form.tipo_tapa.id_for_label }}">Encuadernación</label>
+                  {{ form.tipo_tapa }}
+                  {% if form.tipo_tapa.errors %}<div class="error">{{ form.tipo_tapa.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.numero_paginas.id_for_label }}">Páginas</label>
+                  {{ form.numero_paginas }}
+                  {% if form.numero_paginas.errors %}<div class="error">{{ form.numero_paginas.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.idioma_original.id_for_label }}">Idioma</label>
+                  {{ form.idioma_original }}
+                  {% if form.idioma_original.errors %}<div class="error">{{ form.idioma_original.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
 
-      <div class="divider"></div>
-      <p class="footer-note">Editorial y edición</p>
-      <div class="grid-2">
+              <div class="grid-4">
+                <div>
+                  <label for="{{ form.alto_cm.id_for_label }}">Alto (cm)</label>
+                  {{ form.alto_cm }}
+                  {% if form.alto_cm.errors %}<div class="error">{{ form.alto_cm.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.ancho_cm.id_for_label }}">Ancho (cm)</label>
+                  {{ form.ancho_cm }}
+                  {% if form.ancho_cm.errors %}<div class="error">{{ form.ancho_cm.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.grosor_cm.id_for_label }}">Grosor (cm)</label>
+                  {{ form.grosor_cm }}
+                  {% if form.grosor_cm.errors %}<div class="error">{{ form.grosor_cm.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.peso_gr.id_for_label }}">Peso (gr)</label>
+                  {{ form.peso_gr }}
+                  {% if form.peso_gr.errors %}<div class="error">{{ form.peso_gr.errors|striptags }}</div>{% endif %}
         <div>
-          <label for="{{ form.editorial.id_for_label }}">Editorial</label>
-          {{ form.editorial }}
-          {% if form.editorial.errors %}<div class="error">{{ form.editorial.errors|striptags }}</div>{% endif %}
+          <label for="{{ form.rango_etario.id_for_label }}">Rango etario</label>
+          {{ form.rango_etario }}
+          {% if form.rango_etario.errors %}<div class="error">{{ form.rango_etario.errors|striptags }}</div>{% endif %}
         </div>
-        <div>
-          <label for="{{ form.numero_edicion.id_for_label }}">Nº edición</label>
-          {{ form.numero_edicion }}
-          {% if form.numero_edicion.errors %}<div class="error">{{ form.numero_edicion.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
 
-      <div class="grid-2">
-        <div>
-          <label for="{{ form.fecha_edicion.id_for_label }}">Fecha edición</label>
-          {{ form.fecha_edicion }}
-          {% if form.fecha_edicion.errors %}<div class="error">{{ form.fecha_edicion.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <label for="{{ form.pais_edicion.id_for_label }}">País</label>
-          {{ form.pais_edicion }}
-          {% if form.pais_edicion.errors %}<div class="error">{{ form.pais_edicion.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
 
-      <div class="grid-2">
-        <div>
-          <label for="{{ form.numero_impresion.id_for_label }}">Nº impresión</label>
-          {{ form.numero_impresion }}
-          {% if form.numero_impresion.errors %}<div class="error">{{ form.numero_impresion.errors|striptags }}</div>{% endif %}
+        <!-- Editorial y edición -->
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingEditorial">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseEditorial" aria-expanded="false"
+                    aria-controls="collapseEditorial">
+              Editorial y edición
+            </button>
+          </h2>
+          <div id="collapseEditorial" class="accordion-collapse collapse"
+               aria-labelledby="headingEditorial" data-bs-parent="#accordionLibro">
+            <div class="accordion-body">
+              <div class="grid-2">
+                <div>
+                  <label for="{{ form.editorial.id_for_label }}">Editorial</label>
+                  {{ form.editorial }}
+                  {% if form.editorial.errors %}<div class="error">{{ form.editorial.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.numero_edicion.id_for_label }}">Nº edición</label>
+                  {{ form.numero_edicion }}
+                  {% if form.numero_edicion.errors %}<div class="error">{{ form.numero_edicion.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="grid-2">
+                <div>
+                  <label for="{{ form.fecha_edicion.id_for_label }}">Fecha edición</label>
+                  {{ form.fecha_edicion }}
+                  {% if form.fecha_edicion.errors %}<div class="error">{{ form.fecha_edicion.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.pais_edicion.id_for_label }}">País</label>
+                  {{ form.pais_edicion }}
+                  {% if form.pais_edicion.errors %}<div class="error">{{ form.pais_edicion.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="grid-2">
+                <div>
+                  <label for="{{ form.numero_impresion.id_for_label }}">Nº impresión</label>
+                  {{ form.numero_impresion }}
+                  {% if form.numero_impresion.errors %}<div class="error">{{ form.numero_impresion.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.tematica.id_for_label }}">Temática</label>
+                  {{ form.tematica }}
+                  {% if form.tematica.errors %}<div class="error">{{ form.tematica.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <label for="{{ form.tematica.id_for_label }}">Temática</label>
-          {{ form.tematica }}
-          {% if form.tematica.errors %}<div class="error">{{ form.tematica.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
 
-      <div class="divider"></div>
-      <p class="footer-note">Comercial</p>
-      <div class="grid-3">
-        <div>
-          <label for="{{ form.precio.id_for_label }}">Precio sin IVA</label>
-          {{ form.precio }}
-          {% if form.precio.errors %}<div class="error">{{ form.precio.errors|striptags }}</div>{% endif %}
+        <!-- Comercial -->
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingComercial">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseComercial" aria-expanded="false"
+                    aria-controls="collapseComercial">
+              Comercial
+            </button>
+          </h2>
+          <div id="collapseComercial" class="accordion-collapse collapse"
+               aria-labelledby="headingComercial" data-bs-parent="#accordionLibro">
+            <div class="accordion-body">
+              <div class="grid-3">
+                <div>
+                  <label for="{{ form.precio.id_for_label }}">Precio sin IVA</label>
+                  {{ form.precio }}
+                  {% if form.precio.errors %}<div class="error">{{ form.precio.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.moneda.id_for_label }}">Moneda</label>
+                  {{ form.moneda }}
+                  {% if form.moneda.errors %}<div class="error">{{ form.moneda.errors|striptags }}</div>{% endif %}
+                </div>
+                <div>
+                  <label for="{{ form.descuento_distribuidor.id_for_label }}">Descuento (%)</label>
+                  {{ form.descuento_distribuidor }}
+                  {% if form.descuento_distribuidor.errors %}<div class="error">{{ form.descuento_distribuidor.errors|striptags }}</div>{% endif %}
+                </div>
+              </div>
+              
+            </div>
+          </div>
         </div>
-        <div>
-          <label for="{{ form.moneda.id_for_label }}">Moneda</label>
-          {{ form.moneda }}
-          {% if form.moneda.errors %}<div class="error">{{ form.moneda.errors|striptags }}</div>{% endif %}
-        </div>
-        <div>
-          <label for="{{ form.descuento_distribuidor.id_for_label }}">Descuento (%)</label>
-          {{ form.descuento_distribuidor }}
-          {% if form.descuento_distribuidor.errors %}<div class="error">{{ form.descuento_distribuidor.errors|striptags }}</div>{% endif %}
-        </div>
-      </div>
 
-      <div>
-        <label for="{{ form.resumen_libro.id_for_label }}">Resumen</label>
-        {{ form.resumen_libro }}
+        <!-- Resumen -->
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="headingResumen">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseResumen" aria-expanded="false"
+                    aria-controls="collapseResumen">
+              Resumen
+            </button>
+          </h2>
+          <div id="collapseResumen" class="accordion-collapse collapse"
+               aria-labelledby="headingResumen" data-bs-parent="#accordionLibro">
+            <div class="accordion-body">
+              <div>
+                {{ form.resumen_libro }}
         {% if form.resumen_libro.errors %}<div class="error">{{ form.resumen_libro.errors|striptags }}</div>{% endif %}
-      </div>
-
-      <div class="grid-2">
+              </div>
+     <div class="grid-2">
         <div>
           <label for="id_codigo_imagen">Portada actual / Reemplazar</label>
           <div style="display:flex;align-items:center;gap:12px;">
@@ -234,11 +306,7 @@
           <input type="hidden" name="{{ form.codigo_imagen.name }}" id="id_codigo_imagen" value="{{ form.codigo_imagen.value|default:'' }}">
           {% if form.codigo_imagen.errors %}<div class="error">{{ form.codigo_imagen.errors|striptags }}</div>{% endif %}
         </div>
-        <div>
-          <label for="{{ form.rango_etario.id_for_label }}">Rango etario</label>
-          {{ form.rango_etario }}
-          {% if form.rango_etario.errors %}<div class="error">{{ form.rango_etario.errors|striptags }}</div>{% endif %}
-        </div>
+
       </div>
 
       <div class="actions">
@@ -264,11 +332,9 @@
   </div>
 </div>
 
-
 {% include "roles/confirm_delete_modal.html" %}
 
 {% endblock %}
-
 {% block extra_js %}
 <script>
   (function(){
