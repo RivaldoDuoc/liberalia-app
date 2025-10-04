@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Editar — Libro{% endblock %}
 
 {% block content %}
@@ -211,8 +212,26 @@
 
       <div class="grid-2">
         <div>
-          <label for="{{ form.codigo_imagen.id_for_label }}">Código imagen</label>
-          {{ form.codigo_imagen }}
+          <label for="id_codigo_imagen">Portada actual / Reemplazar</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:100px;height:140px;flex:0 0 auto;border:1px solid #e5e7eb;padding:4px;display:flex;align-items:center;justify-content:center;background:#fafafa;">
+              {% if ficha.codigo_imagen %}
+                <img id="currentPortada" src="{% static 'media/' %}{{ ficha.codigo_imagen }}" alt="Portada" style="max-width:100%;max-height:100%;object-fit:contain;" />
+              {% elif ficha.portada %}
+                <img id="currentPortada" src="{{ ficha.portada.url }}" alt="Portada" style="max-width:100%;max-height:100%;object-fit:contain;" />
+              {% else %}
+                <img id="currentPortada" src="{% static 'img/cover.jpeg' %}" alt="Portada" style="max-width:100%;max-height:100%;object-fit:contain;" />
+              {% endif %}
+            </div>
+
+            <div style="flex:1 1 auto;">
+              <input type="file" id="replacePortadaInput" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+              <div id="fileReplaceStatus" class="text-muted" style="font-size:13px;margin-top:6px;">Selecciona un archivo para reemplazar la portada (se subirá al guardar).</div>
+            </div>
+          </div>
+
+          {# Mantener el campo real como hidden; el JS actualizará su valor antes de submit #}
+          <input type="hidden" name="{{ form.codigo_imagen.name }}" id="id_codigo_imagen" value="{{ form.codigo_imagen.value|default:'' }}">
           {% if form.codigo_imagen.errors %}<div class="error">{{ form.codigo_imagen.errors|striptags }}</div>{% endif %}
         </div>
         <div>
@@ -248,4 +267,68 @@
 
 {% include "roles/confirm_delete_modal.html" %}
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (function(){
+    const fileInput = document.getElementById('replacePortadaInput');
+    const statusEl = document.getElementById('fileReplaceStatus');
+    const previewImg = document.getElementById('currentPortada');
+    const codigoInput = document.getElementById('id_codigo_imagen');
+    const form = document.querySelector('.card-slim form');
+    if (!fileInput || !form) return;
+
+    // CSRF cookie reader
+    function getCookie(name){
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    const csrfToken = getCookie('csrftoken');
+    const uploadUrl = "{% url 'roles:upload_portada' %}";
+
+    let pendingFile = null;
+
+    fileInput.addEventListener('change', function(){
+      const f = this.files && this.files[0];
+      if (!f) return;
+      pendingFile = f;
+      statusEl.textContent = 'Preparado para subir (se guardará al presionar Guardar)';
+
+      const reader = new FileReader();
+      reader.onload = function(e){
+        previewImg.src = e.target.result;
+      };
+      reader.readAsDataURL(f);
+    });
+
+    form.addEventListener('submit', async function(ev){
+      if (!pendingFile) return; // nothing to do
+      ev.preventDefault();
+      statusEl.textContent = 'Subiendo...';
+
+      try{
+        const fd = new FormData();
+        fd.append('portada', pendingFile);
+        const resp = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken },
+          body: fd,
+          credentials: 'same-origin'
+        });
+        if (!resp.ok) throw new Error('Error de red: ' + resp.status);
+        const data = await resp.json();
+        if (!(data && data.success)) throw new Error((data && data.error) ? data.error : 'Error al subir');
+
+        codigoInput.value = data.codigo_imagen || data.filename || '';
+        statusEl.textContent = 'Subido. Guardando...';
+        form.submit();
+      }catch(err){
+        statusEl.textContent = 'Error: ' + err.message;
+        statusEl.classList.add('text-danger');
+      }
+    });
+  })();
+</script>
 {% endblock %}
