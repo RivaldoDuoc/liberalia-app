@@ -214,12 +214,11 @@ PANEL UNIFICADO (ADMIN / CONSULTOR / EDITOR)
           <td>{{ r.fecha_edicion|date:"d/m/Y" }}</td>
           <td class="text-end">
             {% if can_edit and edit_url_name %}
-            <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}">Editar</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url edit_url_name r.isbn %}">Editar</a>
             {% elif show_detail %}
-            <!--<a href="{% url 'catalogo:libro_detalle' r.isbn %}" class="btn btn-sm btn-outline-burdeo {{ detail_disabled|default:'disabled' }}">Detalle</a>-->
-            <a class="btn btn-sm btn-outline-burdeo" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'catalogo:libro_detalle' r.isbn %}">Detalle</a>
             {% else %}
-            <span class="text-muted">—</span>
+              <span class="text-muted">—</span>
             {% endif %}
           </td>
         </tr>
