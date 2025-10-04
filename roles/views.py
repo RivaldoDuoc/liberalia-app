@@ -1333,7 +1333,7 @@ def editoriales_crear(request):
 def upload_portada(request):
     """
     Recibe el archivo 'portada' por POST, lo guarda en MEDIA_ROOT/static/media/
-    y devuelve JSON: { success: True, codigo_imagen: "static/media/<file>" }
+    y devuelve JSON: { success: True, codigo_imagen: filename } o { success: False, error: msg }
     """
     uploaded = request.FILES.get('portada')
     if not uploaded:
@@ -1343,9 +1343,10 @@ def upload_portada(request):
     upload_dir = os.path.join(getattr(settings, 'MEDIA_ROOT', ''), 'static', 'media')
     os.makedirs(upload_dir, exist_ok=True)
 
-    # Generar nombre único manteniendo la extensión
+    # Usamos secrets.token_hex(8) para obtener 16 caracteres hex aleatorios
+    # (longitud <= 20 según lo solicitado)
     _, ext = os.path.splitext(uploaded.name)
-    filename = f"{uuid.uuid4().hex}{ext.lower()}"
+    filename = f"{secrets.token_hex(8)}{ext.lower()}"
     file_path = os.path.join(upload_dir, filename)
 
     # Guardar archivo por chunks
@@ -1355,6 +1356,5 @@ def upload_portada(request):
                 dest.write(chunk)
     except Exception as exc:
         return JsonResponse({'success': False, 'error': str(exc)}, status=500)
-
-    codigo_imagen = os.path.join('static', 'media', filename).replace('\\', '/')
+    codigo_imagen = filename
     return JsonResponse({'success': True, 'codigo_imagen': codigo_imagen, 'filename': filename})
